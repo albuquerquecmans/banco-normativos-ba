@@ -5,7 +5,7 @@ import html
 def _a(href, label):
     if not href:
         return ""
-    return f\'<a href="{html.escape(href)}" target="_blank" rel="noreferrer">{html.escape(label)}</a>\'
+    return f'<a href="{html.escape(href)}" target="_blank" rel="noreferrer">{html.escape(label)}</a>'
 
 def build_site(norms_json: str, out_dir: str):
     out = Path(out_dir)
@@ -30,7 +30,7 @@ def build_site(norms_json: str, out_dir: str):
                 links.append(_a(n["fonte_dou"], "DOU"))
         links_html = " \u00b7 ".join([x for x in links if x]) if links else ""
 
-        titulo = n.get("identificacao") or f\'{n.get("tipo","")} {n.get("numero","")}/{n.get("ano","")}\'
+        titulo = n.get("identificacao") or f'{n.get("tipo","")} {n.get("numero","")}/{n.get("ano","")}'
         rows.append(f"""
         <tr>
           <td><a href="{n['slug']}.html">{html.escape(titulo or n['slug'])}</a></td>
