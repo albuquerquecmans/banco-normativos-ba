@@ -19,13 +19,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: Build site
         shell: bash
         run: |
@@ -37,18 +40,20 @@ jobs:
             python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite
           else
             echo ">> Planilha NÃO encontrada. Publicando placeholder..."
-            cat > _site/index.html <<'HTML'
-            <!doctype html><meta charset="utf-8">
-            <title>banco-normativos-ba</title>
-            <h1>Banco de Normativos de Benefícios Assistenciais</h1>
-            <p>Primeiro deploy via GitHub Pages. Adicione sua planilha em <code>data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx</code> e faça novo push.</p>
-            HTML
+            printf '%s\n' \
+              '<!doctype html><meta charset="utf-8">' \
+              '<title>banco-normativos-ba</title>' \
+              '<h1>Banco de Normativos de Benefícios Assistenciais</h1>' \
+              '<p>Primeiro deploy via GitHub Pages. Adicione sua planilha em <code>data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx</code> e faça novo push.</p>' \
+              > _site/index.html
           fi
-          echo > _site/.nojekyll
+          : > _site/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
