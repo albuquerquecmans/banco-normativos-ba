@@ -1,0 +1,13 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+select = ["E","F","I","B"]
+ignore = ["E501"]
+exclude = ["_site"]
+
+[tool.pytest.ini_options]
+python_files = "test_*.py"
+addopts = "-q --color=yes"

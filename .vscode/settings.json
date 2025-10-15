@@ -1,0 +1,9 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": { "source.fixAll": "always", "source.organizeImports": "always" },
+  "files.exclude": { "**/__pycache__": true, "**/.pytest_cache": true, "_site": false },
+  "python.analysis.typeCheckingMode": "basic"
+}

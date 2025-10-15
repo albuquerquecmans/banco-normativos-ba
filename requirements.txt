@@ -1,0 +1,15 @@
+pandas
+openpyxl
+requests
+jinja2
+beautifulsoup4
+lxml
+click
+python-slugify
+
+# dev
+pytest
+pytest-cov
+ruff
+black
+pre-commit
