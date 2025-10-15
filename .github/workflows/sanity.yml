@@ -1,0 +1,12 @@
+name: sanity
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  ok:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Echo
+        run: echo "Actions OK"
