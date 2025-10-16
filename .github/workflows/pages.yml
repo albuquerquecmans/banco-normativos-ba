@@ -46,11 +46,7 @@ jobs:
             python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite
 
             echo ">> Forcando build_site (garantia de index.html)..."
-            python - <<'PY'
-from bpa.publish.emit_site import build_site
-build_site("data/norms.json","_site")
-print("OK forced build_site")
-PY
+            python -c "from bpa.publish.emit_site import build_site; build_site('data/norms.json','_site'); print('OK forced build_site')"
           else
             echo ">> Planilha NAO encontrada. Publicando placeholder..."
             echo "<!doctype html><meta charset='utf-8'><title>banco-normativos-ba</title><h1>Banco de Normativos de Beneficios Assistenciais</h1><p>Adicione sua planilha em <code>data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx</code> e faca novo push.</p>" > _site/index.html
