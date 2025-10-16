@@ -2,7 +2,7 @@
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: true
 
 jobs:
@@ -29,7 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      -      - name: Build site
+      - name: Build site
         shell: bash
         run: |
           set -euo pipefail
@@ -58,7 +58,6 @@ PY
           echo ">> Conteudo de _site apos publish/force:"
           ls -la _site || true
 
-          # Fallback final (se algo muito errado acontecer)
           if [[ ! -f "_site/index.html" ]]; then
             echo ">> Nenhum index.html encontrado; criando fallback final."
             printf '<!doctype html><meta charset="utf-8"><title>banco-normativos-ba</title><h1>Site gerado</h1><p>Sem index; verifique o passo publish.</p>' > _site/index.html
