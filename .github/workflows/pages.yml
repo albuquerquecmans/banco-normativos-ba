@@ -1,4 +1,4 @@
-name: Build & Deploy Pages
+ï»¿name: Build & Deploy Pages
 
 on:
   push:
@@ -39,14 +39,20 @@ jobs:
             python -m bpa.cli ingest data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx --out-json data/norms.json
             python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite
           else
-            echo ">> Planilha NÃO encontrada. Publicando placeholder..."
-            printf '%s\n' \
-              '<!doctype html><meta charset="utf-8">' \
-              '<title>banco-normativos-ba</title>' \
-              '<h1>Banco de Normativos de Benefícios Assistenciais</h1>' \
-              '<p>Primeiro deploy via GitHub Pages. Adicione sua planilha em <code>data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx</code> e faça novo push.</p>' \
-              > _site/index.html
+            echo ">> Planilha NAO encontrada. Publicando placeholder..."
+            printf '<!doctype html><meta charset="utf-8"><title>banco-normativos-ba</title><h1>Banco de Normativos de Beneficios Assistenciais</h1><p>Adicione sua planilha em <code>data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx</code> e faca novo push.</p>' > _site/index.html
           fi
+
+          # DEBUG: mostrar o que foi gerado
+          echo ">> Conteudo de _site:"
+          ls -la _site
+
+          # Fallback garantido: se nao houver index.html, cria um
+          if [[ ! -f "_site/index.html" ]]; then
+            echo ">> Nenhum index.html encontrado; criando fallback."
+            printf '<!doctype html><meta charset="utf-8"><title>banco-normativos-ba</title><h1>Site gerado</h1><p>Sem index; verifique o passo publish.</p>' > _site/index.html
+          fi
+
           : > _site/.nojekyll
 
       - name: Upload artifact
