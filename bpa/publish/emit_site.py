@@ -1,6 +1,7 @@
 ﻿from pathlib import Path
 import json
 import html
+import re
 
 SEP = " · "  # separador de links
 
@@ -8,6 +9,13 @@ def _a(href, label):
     if not href:
         return ""
     return f'<a href="{html.escape(href)}" target="_blank" rel="noreferrer">{html.escape(label)}</a>'
+
+def _safe_slug(s: str, fallback: str = "norma"):
+    s = (s or "").lower()
+    s = re.sub(r"[^a-z0-9\-]+", "-", s)
+    s = s.replace("/", "-").replace("\\", "-").replace(".", "-")
+    s = re.sub(r"-{2,}", "-", s).strip("-")
+    return s or fallback
 
 def build_site(norms_json: str, out_dir: str):
     out = Path(out_dir)
@@ -23,7 +31,7 @@ def build_site(norms_json: str, out_dir: str):
     rows = []
     for n in norms:
         links = []
-        if n.get("tipo") in {"Lei", "Decreto"}:
+        if n.get("tipo") in {"Lei", "Decreto", "lei", "decreto"}:
             if n.get("fonte_planalto"):
                 links.append(_a(n["fonte_planalto"], "Planalto"))
             if n.get("fonte_dou"):
@@ -33,11 +41,12 @@ def build_site(norms_json: str, out_dir: str):
                 links.append(_a(n["fonte_dou"], "DOU"))
 
         links_joined = SEP.join([x for x in links if x]) if links else ""
-        titulo = n.get("identificacao") or f'{n.get("tipo","")} {n.get("numero","")}/{n.get("ano","")}'
+        titulo = n.get("identificacao") or f'{n.get("tipo","")} {n.get("numero","")}/{n.get("ano","")}' or (n.get("slug") or "")
+        slug = _safe_slug(n.get("slug") or titulo, fallback="norma")
 
         row = (
             "<tr>"
-            f'<td><a href="{n["slug"]}.html">{html.escape(titulo or n["slug"])}</a></td>'
+            f'<td><a href="{slug}.html">{html.escape(titulo or slug)}</a></td>'
             f'<td>{html.escape(n.get("vigencia",""))}</td>'
             f'<td>{html.escape(n.get("tema",""))}</td>'
             f"<td>{links_joined}</td>"
@@ -59,9 +68,9 @@ def build_site(norms_json: str, out_dir: str):
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
     # -------- detalhes por norma --------
-    for n in norms:
+    for i, n in enumerate(norms, start=1):
         links = []
-        if n.get("tipo") in {"Lei", "Decreto"}:
+        if n.get("tipo") in {"Lei", "Decreto", "lei", "decreto"}:
             if n.get("fonte_planalto"):
                 links.append(_a(n["fonte_planalto"], "Ver no Planalto"))
             if n.get("fonte_dou"):
@@ -70,8 +79,8 @@ def build_site(norms_json: str, out_dir: str):
             if n.get("fonte_dou"):
                 links.append(_a(n["fonte_dou"], "Ver no DOU"))
 
-        links_joined = SEP.join([x for x in links if x])
-        titulo = n.get("identificacao") or n.get("slug") or "Detalhe"
+        titulo = n.get("identificacao") or n.get("slug") or f"Norma {i}"
+        slug = _safe_slug(n.get("slug") or titulo, fallback=f"norma-{i}")
 
         detail_html = (
             "<!doctype html><meta charset='utf-8'>"
@@ -80,8 +89,8 @@ def build_site(norms_json: str, out_dir: str):
             f"<h2>{html.escape(titulo)}</h2>"
             f"<p><strong>Vigencia:</strong> {html.escape(n.get('vigencia',''))} | "
             f"<strong>Tema:</strong> {html.escape(n.get('tema',''))}</p>"
-            f"<p>{links_joined}</p>"
+            f"<p>{SEP.join([x for x in links if x])}</p>"
             "<hr>"
             "<p><em>Texto compilado</em> e historico virao aqui em versoes futuras.</p>"
         )
-        (out / f"{n['slug']}.html").write_text(detail_html, encoding="utf-8")
+        (out / f"{slug}.html").write_text(detail_html, encoding="utf-8")

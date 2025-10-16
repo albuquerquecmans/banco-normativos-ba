@@ -1,12 +1,23 @@
 ﻿# scripts/ci_fallback_ingest.py
 from pathlib import Path
-import pandas as pd, json, unicodedata
+import pandas as pd, json, unicodedata, re
 
 def norm(s):
     if s is None: return ""
     s = str(s)
     s = unicodedata.normalize("NFKD", s).encode("ascii","ignore").decode("ascii")
     return s.strip().lower()
+
+def safe_slug(*parts, fallback="item"):
+    txt = "-".join([p for p in parts if p]).strip().lower()
+    if not txt:
+        txt = fallback
+    # troca qualquer coisa que nao seja [a-z0-9-] por "-"
+    txt = re.sub(r"[^a-z0-9\-]+", "-", txt)
+    # remove barras, pontos e hifens extras
+    txt = txt.replace("/", "-").replace("\\", "-").replace(".", "-")
+    txt = re.sub(r"-{2,}", "-", txt).strip("-")
+    return txt or fallback
 
 XLSX = "data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx"
 OUT  = "data/norms.json"
@@ -25,17 +36,26 @@ def pick(row, *names):
     return ""
 
 recs = []
-for _, row in df.iterrows():
-    tipo  = pick(row, "tipo", "ato", "tipo do ato")
-    numero= pick(row, "numero", "n")
-    ano   = pick(row, "ano")
-    ident = pick(row, "identificacao", "identificação", "ato normativo", "referencia", "referência") or f"{tipo} {numero}/{ano}".strip()
-    if not (tipo or numero or ano or ident):
-        continue
-    slug = "-".join([x for x in [tipo, numero, ano] if x]).replace(" ", "-").lower() or ident.replace(" ", "-").lower()
+for idx, row in df.iterrows():
+    tipo   = pick(row, "tipo", "ato", "tipo do ato")
+    numero = pick(row, "numero", "n")
+    ano    = pick(row, "ano")
 
-    fonte_planalto = pick(row, "link_planalto", "planalto", "url_planalto")
-    fonte_dou      = pick(row, "link_dou", "dou", "url_dou")
+    ident  = pick(row, "identificacao", "identificação", "ato normativo", "referencia", "referência")
+    # se a identificacao for vazia/inutil ('/', '-', etc.), cria uma
+    if ident in {"", "/", "-", "--"}:
+        ident = f"{(tipo or '').strip()} {(numero or '').strip()}/{(ano or '').strip()}".strip()
+        if ident in {"/", "-", "", "/ /"}:
+            ident = pick(row, "ementa", "descricao", "descrição") or f"Ato-{idx+1}"
+
+    # slug seguro
+    slug = safe_slug(tipo, numero, ano, fallback=f"norma-{idx+1}")
+    if slug in {"", "-", "/"}:
+        slug = safe_slug(ident, fallback=f"norma-{idx+1}")
+
+    # fontes (preferimos campos especificos, caindo para 'link' generico)
+    fonte_planalto = pick(row, "link_planalto", "planalto", "url_planalto", "site planalto")
+    fonte_dou      = pick(row, "link_dou", "dou", "url_dou", "diario oficial")
     if not (fonte_planalto or fonte_dou):
         link = pick(row, "link", "url", "href")
         if norm(tipo) in {"lei","decreto"}:
@@ -45,8 +65,10 @@ for _, row in df.iterrows():
 
     recs.append({
         "slug": slug,
-        "tipo": tipo, "numero": numero, "ano": ano,
-        "identificacao": ident,
+        "tipo": tipo or "",
+        "numero": numero or "",
+        "ano": ano or "",
+        "identificacao": ident or slug,
         "vigencia": pick(row, "vigencia", "vigência", "status") or "Vigente",
         "tema": pick(row, "tema", "assunto"),
         "subtemas": pick(row, "subtemas", "subtema", "subtema(s)"),
