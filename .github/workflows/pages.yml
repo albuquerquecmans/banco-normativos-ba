@@ -40,20 +40,88 @@ jobs:
           JSON="data/norms.json"
 
           if [[ -f "$PLANILHA" ]]; then
-            echo ">> Planilha encontrada. Ingerindo..."
+            echo ">> Planilha encontrada. Ingerindo via CLI..."
+            # tenta a CLI (se falhar, seguimos adiante)
             python -m bpa.cli ingest "$PLANILHA" --out-json "$JSON" || true
+
+            echo ">> Diagnostico: colunas da planilha (pandas)"
+            python -c "import pandas as pd; x='$PLANILHA'; df=pd.read_excel(x, dtype=str, engine='openpyxl'); print('COLUNAS=', [str(c) for c in df.columns]); print('LINHAS=', len(df))"
           else
             echo ">> Planilha NAO encontrada."
           fi
 
+          # Fallback: se o ingest nao criou o JSON, gerar um basico direto com pandas
+          if [[ ! -f "$JSON" && -f "$PLANILHA" ]]; then
+            echo '>> norms.json NAO gerado; criando fallback com pandas...'
+            python - <<'PY'
+import pandas as pd, json, unicodedata, os
+from pathlib import Path
+
+def norm(s):
+    if s is None: return ""
+    s = str(s)
+    s = unicodedata.normalize("NFKD", s).encode("ascii","ignore").decode("ascii")
+    return s.strip().lower()
+
+xlsx = "data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx"
+df = pd.read_excel(xlsx, dtype=str, engine="openpyxl").fillna("")
+cols = {norm(c): c for c in df.columns}
+
+def pick(row, *names):
+    for name in names:
+        col = cols.get(norm(name))
+        if col:
+            v = row.get(col, "")
+            v = "" if v is None else str(v).strip()
+            if v:
+                return v
+    return ""
+
+recs = []
+for _, row in df.iterrows():
+    tipo = pick(row, "tipo", "ato", "tipo do ato")
+    numero = pick(row, "numero", "n")
+    ano = pick(row, "ano")
+    ident = pick(row, "identificacao", "identificação", "ato normativo", "referencia", "referência") or f"{tipo} {numero}/{ano}".strip()
+    if not (tipo or numero or ano or ident):
+        continue
+    slug = "-".join([x for x in [tipo, numero, ano] if x]).replace(" ", "-").lower() or ident.replace(" ", "-").lower()
+    # fontes (preferimos campos especificos, caindo para 'link' generico)
+    fonte_planalto = pick(row, "link_planalto", "planalto", "url_planalto")
+    fonte_dou = pick(row, "link_dou", "dou", "url_dou")
+    if not (fonte_planalto or fonte_dou):
+        link = pick(row, "link", "url", "href")
+        if norm(tipo) in {"lei","decreto"}:
+            fonte_planalto = link
+        else:
+            fonte_dou = link
+    recs.append({
+        "slug": slug,
+        "tipo": tipo, "numero": numero, "ano": ano,
+        "identificacao": ident,
+        "vigencia": pick(row, "vigencia", "vigência", "status") or "Vigente",
+        "tema": pick(row, "tema", "assunto"),
+        "subtemas": pick(row, "subtemas", "subtema", "subtema(s)"),
+        "fonte_planalto": fonte_planalto,
+        "fonte_dou": fonte_dou,
+    })
+
+Path("data").mkdir(exist_ok=True)
+with open("data/norms.json","w",encoding="utf-8") as f:
+    json.dump(recs, f, ensure_ascii=False, indent=2)
+print("fallback wrote", len(recs), "records to data/norms.json")
+PY
+          fi
+
           if [[ -f "$JSON" ]]; then
-            echo ">> JSON encontrado. Publicando site..."
+            echo ">> Preview do JSON:"
+            python -c "import json; d=json.load(open('$JSON',encoding='utf-8')); print('registros=',len(d)); print('primeiros=', [ (r.get('identificacao') or r.get('slug') or '')[:80] for r in d[:5] ])"
+            echo ">> Publicando (CLI e forca build_site)..."
             python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite || true
-            # garantia de index.html
-            python -c "from bpa.publish.emit_site import build_site; build_site('data/norms.json','_site'); print('OK forced build_site')" || true
+            python -c "from bpa.publish.emit_site import build_site; build_site('data/norms.json','_site')"
           else
             echo ">> JSON NAO encontrado. Publicando placeholder..."
-            echo "<!doctype html><meta charset='utf-8'><title>banco-normativos-ba</title><h1>Banco de Normativos de Beneficios Assistenciais</h1><p>Ingest nao gerou <code>data/norms.json</code>. Verifique o leitor da planilha.</p>" > _site/index.html
+            echo "<!doctype html><meta charset='utf-8'><title>banco-normativos-ba</title><h1>Banco de Normativos de Beneficios Assistenciais</h1><p>Ingest nao gerou <code>data/norms.json</code>. Verifique os nomes de colunas da planilha.</p>" > _site/index.html
           fi
 
           echo ">> Conteudo de _site:"
