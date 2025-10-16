@@ -39,13 +39,14 @@ jobs:
           if [[ -f "data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx" ]]; then
             echo ">> Planilha encontrada. Ingerindo e publicando..."
             python -m bpa.cli ingest data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx --out-json data/norms.json
-            echo ">> Conteudo de data/ apos ingest:"
-            ls -la data || true
+
+            echo ">> Preview de data/norms.json:"
+            python -c "import json; d=json.load(open('data/norms.json',encoding='utf-8')); print('registros:',len(d)); [print(' -', (r.get('identificacao') or r.get('slug') or '')[:120]) for r in d[:5]]"
 
             echo ">> Executando publish..."
             python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite
 
-            echo ">> Forcando build_site (garantia de index.html)..."
+            echo '>> Forcando build_site (garantia de index.html)...'
             python -c "from bpa.publish.emit_site import build_site; build_site('data/norms.json','_site'); print('OK forced build_site')"
           else
             echo ">> Planilha NAO encontrada. Publicando placeholder..."
