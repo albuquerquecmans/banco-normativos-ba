@@ -32,20 +32,24 @@ jobs:
       - name: Build site
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p _site
+
           if [[ -f "data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx" ]]; then
             echo ">> Planilha encontrada. Ingerindo e publicando..."
             python -m bpa.cli ingest data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx --out-json data/norms.json
+            echo ">> Conteudo de data/ apos ingest:"
+            ls -la data || true
+
+            echo ">> Executando publish..."
             python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite
           else
             echo ">> Planilha NAO encontrada. Publicando placeholder..."
             printf '<!doctype html><meta charset="utf-8"><title>banco-normativos-ba</title><h1>Banco de Normativos de Beneficios Assistenciais</h1><p>Adicione sua planilha em <code>data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx</code> e faca novo push.</p>' > _site/index.html
           fi
 
-          # DEBUG: mostrar o que foi gerado
-          echo ">> Conteudo de _site:"
-          ls -la _site
+          echo ">> Conteudo de _site apos publish (se existir):"
+          ls -la _site || true
 
           # Fallback garantido: se nao houver index.html, cria um
           if [[ ! -f "_site/index.html" ]]; then
