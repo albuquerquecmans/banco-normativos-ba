@@ -4,129 +4,151 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   :root{--fg:#0f172a;--muted:#475569;--bg:#f8fafc;--card:#ffffff;--pri:#2563eb}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; margin:0; color:var(--fg); background:var(--bg)}
-  .wrap{max-width:860px;margin:40px auto;padding:0 16px}
-  .card{background:var(--card);border:1px solid #e2e8f0;border-radius:16px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.04);margin-bottom:20px}
-  h1{font-size:1.6rem;margin:0 0 8px}
-  p{color:var(--muted)}
-  a.btn{display:inline-block;background:var(--pri);color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  label{display:block;font-weight:600;margin:10px 0 6px}
-  input,select,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px}
-  small{color:var(--muted)}
-  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
-  .muted{color:var(--muted)}
-  code{background:#eef2ff;border-radius:6px;padding:2px 6px}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;margin:0;background:var(--bg);color:var(--fg)}
+  .wrap{max-width:960px;margin:40px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid #e2e8f0;border-radius:16px;padding:24px;box-shadow:0 2px 6px rgba(0,0,0,.04);margin-bottom:22px}
+  h1{font-size:1.6rem;margin:0 0 10px}
+  h2{font-size:1.25rem;margin:0 0 12px}
+  p{color:var(--muted);margin:0 0 14px}
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  a.btn{display:inline-block;background:var(--pri);color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px}
+  a.btn.secondary{background:#0ea5e9}
+  .hint{font-size:.92rem;color:var(--muted)}
+  input,select{padding:10px;border:1px solid #cbd5e1;border-radius:10px;width:100%}
+  label{display:block;font-weight:600;margin:8px 0 6px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .pill{background:#eef2ff;color:#1e293b;border-radius:999px;padding:4px 10px;font-size:.85rem}
 </style>
 
 <div class="wrap">
   <h1>Admin · Banco de Normativos de Benefícios Assistenciais</h1>
-  <p class="muted">Este painel abre <strong>Issues no GitHub</strong>. Os workflows transformam a issue em PR com patch JSON; ao aprovar o PR, o site é atualizado.</p>
 
   <div class="card">
     <h2>Novo ato</h2>
-    <div class="row">
-      <div>
-        <label>Tipo</label>
-        <select id="tipo">
-          <option>Lei</option><option>Medida Provisória</option><option>Decreto</option>
-          <option>Instrução Normativa</option><option>Instrução Operacional</option>
-          <option>Memorando Circular</option><option>Mensagem</option><option>Orientação Interna</option>
-          <option>Portaria</option><option>Portaria Conjunta</option><option>Portaria INSS</option>
-          <option>Portaria Interministerial</option><option>Portaria MDS</option><option>Resolução</option>
-        </select>
-      </div>
-      <div>
-        <label>Número</label>
-        <input id="numero" placeholder="ex: 123">
-      </div>
-      <div>
-        <label>Ano</label>
-        <input id="ano" placeholder="ex: 2025">
-      </div>
-      <div>
-        <label>Data (AAAA-MM-DD)</label>
-        <input id="data" placeholder="2025-08-05">
-      </div>
-      <div>
-        <label>Situação</label>
-        <select id="situacao">
-          <option>Vigente</option><option>Revogada</option>
-          <option>Suspensa</option><option>Não vigente</option>
-        </select>
-      </div>
-      <div>
-        <label>Origem (Órgão)</label>
-        <input id="origem" placeholder="MDS/INSS/...">
-      </div>
-    </div>
-    <label>Identificação (como publicado)</label>
-    <input id="identificacao" placeholder="Ex.: Portaria MDS nº 123, de 5 de agosto de 2025">
-    <label>Ementa</label>
-    <textarea id="ementa" rows="3" placeholder="Resumo do ato..."></textarea>
-    <div class="row">
-      <div>
-        <label>Link DOU</label>
-        <input id="dou" placeholder="https://www.in.gov.br/...">
-      </div>
-      <div>
-        <label>Link Planalto (lei/decreto)</label>
-        <input id="planalto" placeholder="https://www.planalto.gov.br/...">
-      </div>
-    </div>
-    <div class="row">
-      <div>
-        <label>Altera (um por linha)</label>
-        <textarea id="altera" rows="3" placeholder="Lei nº 8.742/1993&#10;Portaria MDS nº 123/2024"></textarea>
-      </div>
-      <div>
-        <label>Alterado por (um por linha)</label>
-        <textarea id="alterado_por" rows="3" placeholder="Portaria Conjunta MDS/MPS nº 33/2025"></textarea>
-      </div>
-    </div>
+    <p>Inclusões são feitas via <strong>Issue Form</strong>. Ao enviar, um workflow cria um PR com o patch; após o merge, o site atualiza.</p>
     <div class="actions">
-      <a class="btn" id="btnIssue" href="#" target="_blank" rel="noreferrer">Abrir Issue “Novo ato”</a>
-      <small>O formulário abre no <code>github.com</code>. É preciso permissão no repositório.</small>
+      <a id="btnNovo" class="btn" target="_blank" rel="noreferrer">Abrir “Novo ato”</a>
+      <span class="hint">Requer permissão para abrir issues.</span>
     </div>
   </div>
 
   <div class="card">
-    <h2>Editar/ajustar ato existente</h2>
-    <div class="actions">
-      <a class="btn" id="btnEdit" href="#" target="_blank" rel="noreferrer">Abrir Issue “Alterar ato”</a>
-      <small>Informe o <em>slug</em> ou identificação e os campos a ajustar.</small>
+    <h2>Alterar ato existente</h2>
+    <div class="grid">
+      <div>
+        <label for="busca">Buscar ato (identificação, número, tipo, ano…) </label>
+        <input id="busca" list="atos" placeholder="ex: Portaria MDS nº 123, 2024 / Lei 8742" autocomplete="off">
+        <datalist id="atos"></datalist>
+      </div>
+      <div>
+        <label>Slug selecionado</label>
+        <input id="slug" readonly placeholder="— selecione um ato acima —">
+      </div>
     </div>
+
+    <div id="resumo" class="row" style="margin-top:10px;display:none">
+      <span class="pill" id="pTipo"></span>
+      <span class="pill" id="pNum"></span>
+      <span class="pill" id="pAno"></span>
+      <span class="pill" id="pSit"></span>
+      <a id="linkVer" class="btn secondary" style="padding:6px 10px" target="_blank" rel="noreferrer">Ver no site</a>
+    </div>
+
+    <div class="actions" style="margin-top:14px">
+      <a id="btnAlterar" class="btn" target="_blank" rel="noreferrer" aria-disabled="true">Abrir “Alterar ato”</a>
+      <span class="hint">O título da issue incluirá o slug selecionado.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <p><a href="../">← Voltar ao site</a></p>
   </div>
 </div>
 
 <script>
-(function() {
-  // Deduz owner e repo a partir da URL do Pages (ex.: albuquerquecmans.github.io/banco-normativos-ba/)
-  // Fallback para especificar manualmente se usar domínio customizado.
-  let owner = (location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] : 'albuquerquecmans');
-  let repo  = (location.pathname.split('/').filter(Boolean)[0] || 'banco-normativos-ba');
-
+(function () {
+  // Descobre owner/repo a partir do domínio de Pages (ajuste manual se usar domínio customizado)
+  const owner = (location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] : 'albuquerquecmans');
+  const repo  = (location.pathname.split('/').filter(Boolean)[0] || 'banco-normativos-ba');
   const issuesBase = `https://github.com/${owner}/${repo}/issues/new`;
+  document.getElementById('btnNovo').href    = `${issuesBase}?template=novo_ato.yml`;
+  document.getElementById('btnAlterar').href = `${issuesBase}?template=alterar_ato.yml`;
 
-  const novoAto = `${issuesBase}?template=novo_ato.yml`;
-  const alterarAto = `${issuesBase}?template=alterar_ato.yml`;
+  // Carrega lista de atos de ../data/norms.json e preenche o datalist
+  const busca = document.getElementById('busca');
+  const datalist = document.getElementById('atos');
+  const slugEl = document.getElementById('slug');
+  const resumo = document.getElementById('resumo');
+  const pTipo = document.getElementById('pTipo');
+  const pNum  = document.getElementById('pNum');
+  const pAno  = document.getElementById('pAno');
+  const pSit  = document.getElementById('pSit');
+  const linkVer = document.getElementById('linkVer');
+  const btnAlterar = document.getElementById('btnAlterar');
 
-  function buildTitle() {
-    const t = document.getElementById('tipo').value || '';
-    const n = (document.getElementById('numero').value || '').trim();
-    const a = (document.getElementById('ano').value || '').trim();
-    const tail = [n, a].filter(Boolean).join('/');
-    return encodeURIComponent(`Novo ato: ${t}${tail ? ' ' + tail : ''}`);
+  let atos = [];
+  const pathJSON = '../data/norms.json'; // relativo a /admin/
+
+  fetch(pathJSON, {cache: 'no-store'})
+    .then(r => r.json())
+    .then(data => {
+      atos = Array.isArray(data) ? data : [];
+      // monta opções: "Identificação (slug)"
+      const frag = document.createDocumentFragment();
+      atos.forEach(n => {
+        const idt = (n.identificacao || '').trim();
+        const opt = document.createElement('option');
+        opt.value = idt ? `${idt} (${n.slug})` : n.slug;
+        opt.dataset.slug = n.slug;
+        frag.appendChild(opt);
+      });
+      datalist.appendChild(frag);
+    })
+    .catch(() => { /* silencia, admin continua útil sem a lista */ });
+
+  function encontrarPorEntrada(txt) {
+    if (!txt) return null;
+    // tenta pegar slug entre parênteses:
+    const m = txt.match(/\(([^)]+)\)\s*$/);
+    const slug = m ? m[1] : null;
+    if (slug) return atos.find(a => a.slug === slug) || null;
+
+    // fallback: busca por identificação parcial
+    const q = txt.toLowerCase();
+    return atos.find(a =>
+      (a.identificacao||'').toLowerCase().includes(q) ||
+      (a.tipo||'').toLowerCase().includes(q) ||
+      String(a.numero||'').toLowerCase().includes(q) ||
+      String(a.ano||'').toLowerCase().includes(q) ||
+      (a.slug||'').toLowerCase().includes(q)
+    ) || null;
   }
 
-  document.getElementById('btnIssue').addEventListener('click', (e)=>{
-    e.preventDefault();
-    window.open(novoAto + '&title=' + buildTitle(), '_blank', 'noreferrer');
-  });
+  function atualizarResumo(n) {
+    if (!n) { resumo.style.display='none'; slugEl.value=''; btnAlterar.setAttribute('aria-disabled','true'); return; }
+    slugEl.value = n.slug || '';
+    pTipo.textContent = n.tipo || '—';
+    pNum.textContent  = 'Nº ' + (n.numero ?? '—');
+    pAno.textContent  = String(n.ano ?? '—');
+    pSit.textContent  = n.situacao || (n.vigencia || '—');
+    linkVer.href = n.slug ? `../${n.slug}.html` : '../';
+    resumo.style.display='flex';
 
-  document.getElementById('btnEdit').addEventListener('click', (e)=>{
-    e.preventDefault();
-    window.open(alterarAto, '_blank', 'noreferrer');
+    // título do Issue Form com slug para facilitar
+    const titulo = encodeURIComponent(`Alterar ato: ${n.slug}`);
+    btnAlterar.href = `${issuesBase}?template=alterar_ato.yml&title=${titulo}`;
+    btnAlterar.removeAttribute('aria-disabled');
+  }
+
+  busca.addEventListener('change', () => {
+    const n = encontrarPorEntrada(busca.value);
+    atualizarResumo(n);
+  });
+  busca.addEventListener('input', () => {
+    // ao digitar, esconda o resumo até confirmar
+    resumo.style.display='none';
+    btnAlterar.setAttribute('aria-disabled','true');
   });
 })();
 </script>
