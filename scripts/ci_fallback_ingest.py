@@ -14,8 +14,7 @@ def norm(s):
 
 def safe_slug(*parts, fallback="item"):
     txt = "-".join([p for p in parts if p]).strip().lower()
-    if not txt:
-        txt = fallback
+    if not txt: txt = fallback
     txt = re.sub(r"[^a-z0-9\-]+", "-", txt)
     txt = txt.replace("/", "-").replace("\\", "-").replace(".", "-")
     txt = re.sub(r"-{2,}", "-", txt).strip("-")
@@ -47,6 +46,7 @@ SYN = {
     "vigencia": ["vigencia", "vigência", "status", "situacao", "situação"],
     "tema": ["tema", "assunto principal", "tema principal"],
     "subtemas": ["subtemas", "sub-temas", "subtema", "subtema(s)", "sub-assunto"],
+    "origem": ["origem", "orgao", "órgão", "secretaria", "ministerio", "ministério"],
     "link_planalto": ["link_planalto", "planalto", "url_planalto", "site planalto"],
     "link_dou": ["link_dou", "dou", "url_dou", "diario oficial", "diário oficial"],
     "link": ["link", "url", "href"],
@@ -80,21 +80,15 @@ for i, row in df.iterrows():
 
     tipo, numero, ano = pick(row, "tipo"), pick(row, "numero"), pick(row, "ano")
     ident = pick(row, "identificacao")
-
-    # Derivação + saneamento de identificação
     if not ident:
         ident = f"{(tipo or '').strip()} {(numero or '').strip()}/{(ano or '').strip()}".strip()
     if ident in {"/", "-", "--", "/ /"} or not ident:
-        ident = pick(row, "ementa")
-    if not ident:
-        ident = f"Ato-{i+1}"
+        ident = pick(row, "ementa") or f"Ato-{i+1}"
 
-    # Slug seguro
     slug = safe_slug(tipo, numero, ano, fallback=f"norma-{i+1}")
     if slug in {"", "-", "/"}:
         slug = safe_slug(ident, fallback=f"norma-{i+1}")
 
-    # Fontes
     fonte_planalto = pick(row, "link_planalto")
     fonte_dou      = pick(row, "link_dou")
     if not (fonte_planalto or fonte_dou):
@@ -124,6 +118,7 @@ for i, row in df.iterrows():
         "vigencia": pick(row, "vigencia") or "Vigente",
         "tema": pick(row, "tema"),
         "subtemas": pick(row, "subtemas"),
+        "origem": pick(row, "origem"),
         "fonte_planalto": fonte_planalto,
         "fonte_dou": fonte_dou,
         "texto_original": pick(row, "texto_original"),
@@ -138,5 +133,5 @@ for i, row in df.iterrows():
 
 Path("data").mkdir(parents=True, exist_ok=True)
 Path(OUT).write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-print(f">> Gravado {len(records)} registros em {OUT}")
+print(">> Gravado", len(records), "registros em", OUT)
 print(">> PREVIEW (5):", [r["identificacao"] for r in records[:5]])
