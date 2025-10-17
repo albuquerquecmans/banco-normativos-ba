@@ -1,37 +1,47 @@
-name: Alteração/correção de ato existente
-description: Solicitar ajuste em metadados ou relações
-title: "Alterar ato: <slug ou identificação>"
-labels: ["ajuste"]
-
+name: Alterar ato existente
+description: Propor ajustes em um ato já cadastrado (metadados, links, situação, relações etc.)
+title: "Alterar ato: <informe o slug>"
+labels: ["alteracao-ato"]
+assignees: []
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Informe o **slug/identificador** do ato exatamente como está no site (ex.: `portaria-mds-123-2025-08-05`).
+        Você pode copiar o slug via Admin → buscar e selecionar o ato.
+
   - type: input
     id: slug
     attributes:
       label: Slug/Identificador do ato
-      placeholder: "ex: portaria-mds-123-2025"
+      description: Exatamente como aparece no URL da página do ato.
+      placeholder: ex.: portaria-mds-123-2025-08-05
     validations:
       required: true
 
-  - type: checkboxes
+  - type: textarea
     id: campos
     attributes:
-      label: Campos a alterar
-      options:
-        - label: Tipo
-        - label: Número
-        - label: Ano
-        - label: Data
-        - label: Origem
-        - label: Situação (Vigência)
-        - label: Ementa
-        - label: Tema
-        - label: Links (DOU/Planalto)
-        - label: Relações (altera / alterado_por / correlatas)
+      label: Campos a alterar (preencha apenas os que mudam)
+      description: |
+        Informe somente os campos que devem ser atualizados, em formato chave: valor (um por linha).
+        **Campos aceitos**: tipo, numero, ano, data, situacao, origem, identificacao, ementa, dou_url, planalto_url,
+        altera (lista; uma por linha), alterado_por (lista; uma por linha), tema, subtema.
+      placeholder: |
+        situacao: Revogada
+        ementa: Nova ementa consolidando alterações de 2025.
+        dou_url: https://www.in.gov.br/...
+        alterado_por:
+          - Portaria Conjunta MDS/MPS nº 33/2025
+          - Decreto nº 12.345/2025
+    validations:
+      required: true
 
   - type: textarea
-    id: detalhes
+    id: justificativa
     attributes:
-      label: Detalhe as mudanças
-      description: Informe o novo valor de cada campo marcado, um por linha.
+      label: Justificativa / fonte
+      description: Link(s) e explicação (DOU, Planalto, parecer, etc.)
+      placeholder: Explique a motivação da alteração e a fonte oficial.
     validations:
       required: true

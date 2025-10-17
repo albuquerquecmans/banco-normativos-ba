@@ -1,29 +1,20 @@
-name: Novo ato normativo
-description: Solicitar inclusão de um novo ato na base
-title: "Novo ato: <Tipo> <Número>/<Ano>"
+name: Novo ato
+description: Solicitar inclusão de um novo ato normativo na base
+title: "Novo ato: <tipo> <numero>/<ano>"
 labels: ["novo-ato"]
-
+assignees: []
 body:
-  - type: dropdown
+  - type: markdown
+    attributes:
+      value: |
+        Preencha os campos abaixo. O **slug** pode ser deixado em branco para o sistema gerar automaticamente
+        (com base em tipo/numero/ano/data). Se você já tiver um slug padronizado, pode informar.
+
+  - type: input
     id: tipo
     attributes:
       label: Tipo
-      options:
-        - Lei
-        - Medida Provisória
-        - Decreto
-        - Instrução Normativa
-        - Instrução Operacional
-        - Memorando Circular
-        - Mensagem
-        - Orientação Interna
-        - Portaria
-        - Portaria Conjunta
-        - Portaria INSS
-        - Portaria Interministerial
-        - Portaria MDS
-        - Resolução
-      multiple: false
+      placeholder: Lei | Decreto | Portaria | Portaria Conjunta | Instrução Normativa | ...
     validations:
       required: true
 
@@ -31,7 +22,7 @@ body:
     id: numero
     attributes:
       label: Número
-      placeholder: "ex: 123"
+      placeholder: "123"
     validations:
       required: false
 
@@ -39,89 +30,104 @@ body:
     id: ano
     attributes:
       label: Ano
-      placeholder: "ex: 2025"
+      placeholder: "2025"
     validations:
       required: false
 
   - type: input
     id: data
     attributes:
-      label: Data de publicação
-      placeholder: "AAAA-MM-DD"
-    validations:
-      required: false
-
-  - type: input
-    id: origem
-    attributes:
-      label: Órgão/Origem
+      label: Data (AAAA-MM-DD)
+      placeholder: "2025-08-05"
     validations:
       required: false
 
   - type: dropdown
     id: situacao
     attributes:
-      label: Situação (Vigência)
+      label: Situação
       options:
         - Vigente
         - Revogada
         - Suspensa
         - Não vigente
-      multiple: false
+      default: 0
+    validations:
+      required: true
+
+  - type: input
+    id: origem
+    attributes:
+      label: Origem (Órgão)
+      placeholder: "MDS / INSS / MPS / Presidência ..."
     validations:
       required: false
 
-  - type: textarea
+  - type: input
+    id: slug
+    attributes:
+      label: Slug (opcional)
+      description: Se vazio, será gerado automaticamente.
+      placeholder: "portaria-mds-123-2025-08-05"
+    validations:
+      required: false
+
+  - type: input
     id: identificacao
     attributes:
       label: Identificação (como publicado)
-      placeholder: "Ex.: Portaria MDS nº 123, de 5 de agosto de 2025"
+      placeholder: "Portaria MDS nº 123, de 5 de agosto de 2025"
     validations:
       required: true
 
   - type: textarea
     id: ementa
     attributes:
-      label: Ementa (resumo)
+      label: Ementa
+      placeholder: "Resumo do ato..."
+    validations:
+      required: true
+
+  - type: input
+    id: dou_url
+    attributes:
+      label: Link DOU
+      placeholder: "https://www.in.gov.br/..."
     validations:
       required: false
 
   - type: input
-    id: tema
+    id: planalto_url
     attributes:
-      label: Tema(s)
-      placeholder: "BPC; Avaliação da deficiência"
-    validations:
-      required: false
-
-  - type: input
-    id: fonte_dou
-    attributes:
-      label: Link do DOU
-      placeholder: "https://..."
-    validations:
-      required: false
-
-  - type: input
-    id: fonte_planalto
-    attributes:
-      label: Link do Planalto (leis/decretos)
-      placeholder: "https://..."
+      label: Link Planalto (lei/decreto)
+      placeholder: "https://www.planalto.gov.br/..."
     validations:
       required: false
 
   - type: textarea
     id: altera
     attributes:
-      label: Este ato ALTERA quais outros? (um por linha)
-      placeholder: "Lei nº 8.742/1993\nPortaria MDS nº 123/2024"
+      label: Este ato altera (um por linha)
+      placeholder: |
+        Lei nº 8.742/1993
+        Portaria MDS nº 123/2024
     validations:
       required: false
 
   - type: textarea
     id: alterado_por
     attributes:
-      label: Este ato foi ALTERADO por quais outros? (um por linha)
-      placeholder: "Portaria Conjunta MDS/MPS nº 33/2025"
+      label: Este ato é alterado por (um por linha)
+      placeholder: |
+        Portaria Conjunta MDS/MPS nº 33/2025
     validations:
       required: false
+
+  - type: textarea
+    id: justificativa
+    attributes:
+      label: Fonte(s) oficial(is)
+      description: Links/support (DOU, Planalto, parecer, etc.)
+      placeholder: Inclua as referências.
+    validations:
+      required: true
