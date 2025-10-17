@@ -1,1 +1,60 @@
-﻿<COLE AQUI O CONTEÚDO COMPLETO DO INGEST.YML>
+﻿name: Ingest planilha → norms.json
+
+on:
+  push:
+    paths:
+      - "data/*.xlsx"
+      - "bpa/**"
+      - "scripts/**"
+  pull_request:
+    paths:
+      - "data/*.xlsx"
+      - "bpa/**"
+      - "scripts/**"
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Ingest all XLSX → data/norms.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          if ls data/*.xlsx >/dev/null 2>&1; then
+            for X in data/*.xlsx; do
+              echo ">> Ingerindo: $X"
+              python -m bpa.cli ingest "$X" --out-json data/norms.json
+            done
+          else
+            echo ">> Nenhum XLSX encontrado em data/"
+          fi
+          [[ -f data/norms.json ]] || echo "[]">data/norms.json
+
+      - name: Merge patches (issues)
+        run: |
+          python scripts/merge_patches.py
+
+      - name: Validate schema
+        run: |
+          python scripts/validate_json.py --schema data/schema.json --data data/norms.json
+
+      - name: Auto-commit norms.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "data: atualiza norms.json (ingest)"
+          file_pattern: "data/norms.json"
