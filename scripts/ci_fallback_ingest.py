@@ -14,9 +14,12 @@ def norm(s):
 
 def safe_slug(*parts, fallback="item"):
     txt = "-".join([p for p in parts if p]).strip().lower()
-    txt = re.sub(r"[^a-z0-9\-]+", "-", txt) if txt else fallback
+    if not txt:
+        txt = fallback
+    txt = re.sub(r"[^a-z0-9\-]+", "-", txt)
     txt = txt.replace("/", "-").replace("\\", "-").replace(".", "-")
-    return re.sub(r"-{2,}", "-", txt).strip("-") or fallback
+    txt = re.sub(r"-{2,}", "-", txt).strip("-")
+    return txt or fallback
 
 def looks_url(v: str) -> bool:
     return bool(v) and isinstance(v, str) and re.match(r"^https?://", v.strip())
@@ -47,7 +50,6 @@ SYN = {
     "link_planalto": ["link_planalto", "planalto", "url_planalto", "site planalto"],
     "link_dou": ["link_dou", "dou", "url_dou", "diario oficial", "diário oficial"],
     "link": ["link", "url", "href"],
-    # novos campos opcionais
     "texto_original": ["texto original", "url texto original", "texto_original"],
     "texto_compilado": ["texto compilado", "url texto compilado", "texto_compilado"],
     "altera": ["altera", "alteracoes que faz", "altera_ids"],
@@ -78,13 +80,21 @@ for i, row in df.iterrows():
 
     tipo, numero, ano = pick(row, "tipo"), pick(row, "numero"), pick(row, "ano")
     ident = pick(row, "identificacao")
-    if not ident:
-        ident = f"{(tipo or '').strip()} {(numero or '').strip()}/{(ano or '').strip()}".strip() or pick(row, "ementa") or f"Ato-{i+1}"
 
+    # Derivação + saneamento de identificação
+    if not ident:
+        ident = f"{(tipo or '').strip()} {(numero or '').strip()}/{(ano or '').strip()}".strip()
+    if ident in {"/", "-", "--", "/ /"} or not ident:
+        ident = pick(row, "ementa")
+    if not ident:
+        ident = f"Ato-{i+1}"
+
+    # Slug seguro
     slug = safe_slug(tipo, numero, ano, fallback=f"norma-{i+1}")
     if slug in {"", "-", "/"}:
         slug = safe_slug(ident, fallback=f"norma-{i+1}")
 
+    # Fontes
     fonte_planalto = pick(row, "link_planalto")
     fonte_dou      = pick(row, "link_dou")
     if not (fonte_planalto or fonte_dou):
@@ -95,7 +105,6 @@ for i, row in df.iterrows():
             else:
                 fonte_dou = gen
         else:
-            # varrer URLs
             for k, v in raw.items():
                 if looks_url(v):
                     nk = norm(k)
@@ -117,13 +126,11 @@ for i, row in df.iterrows():
         "subtemas": pick(row, "subtemas"),
         "fonte_planalto": fonte_planalto,
         "fonte_dou": fonte_dou,
-        # novos campos opcionais
         "texto_original": pick(row, "texto_original"),
         "texto_compilado": pick(row, "texto_compilado"),
         "altera": pick(row, "altera"),
         "alterado_por": pick(row, "alterado_por"),
         "relacionados": pick(row, "relacionados"),
-        # dump completo da linha
         "raw": raw,
         "raw_columns": list(raw.keys())
     }

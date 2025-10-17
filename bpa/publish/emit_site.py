@@ -20,20 +20,20 @@ def _safe_slug(s: str, fallback: str = "norma"):
     return s or fallback
 
 def _css():
-    return """
-    <style>
-      body{font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;margin:24px;max-width:1100px}
-      h1{margin:0 0 12px}
-      table{border-collapse:collapse;width:100%}
-      th,td{border:1px solid #ccc;padding:8px;vertical-align:top}
-      thead th{background:#f7f7f7}
-      .meta h3{margin:24px 0 8px}
-      .btns a{display:inline-block;border:1px solid #444;padding:6px 10px;margin-right:8px;text-decoration:none}
-      .muted{color:#666}
-      .pill{display:inline-block;background:#eef;border:1px solid #cde;border-radius:12px;padding:2px 8px;margin-right:6px}
-      .section{margin:18px 0}
-    </style>
-    """
+    return (
+        "<style>"
+        "body{font:16px/1.35 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;margin:24px;max-width:1100px}"
+        "h1{margin:0 0 12px}"
+        "table{border-collapse:collapse;width:100%}"
+        "th,td{border:1px solid #ccc;padding:8px;vertical-align:top}"
+        "thead th{background:#f7f7f7}"
+        ".meta h3{margin:24px 0 8px}"
+        ".btns a{display:inline-block;border:1px solid #444;padding:6px 10px;margin-right:8px;text-decoration:none}"
+        ".muted{color:#666}"
+        ".pill{display:inline-block;background:#eef;border:1px solid #cde;border-radius:12px;padding:2px 8px;margin-right:6px}"
+        ".section{margin:18px 0}"
+        "</style>"
+    )
 
 def build_site(norms_json: str, out_dir: str):
     out = Path(out_dir)
@@ -44,16 +44,16 @@ def build_site(norms_json: str, out_dir: str):
     if p.exists():
         norms = json.loads(p.read_text(encoding="utf-8"))
 
-    # índice auxiliar: slug e identificação -> slug
+    # índice para resolver links entre atos
     slug_by_key = {}
     for n in norms:
-        slug = _safe_slug(n.get("slug") or n.get("identificacao") or "")
-        if not slug:
+        s = _safe_slug(n.get("slug") or n.get("identificacao") or "")
+        if not s:
             continue
-        slug_by_key[slug] = slug
+        slug_by_key[s] = s
         ident = (n.get("identificacao") or "").strip().lower()
         if ident:
-            slug_by_key[ident] = slug
+            slug_by_key[ident] = s
 
     # ===== index.html =====
     rows = []
@@ -61,7 +61,6 @@ def build_site(norms_json: str, out_dir: str):
         titulo = n.get("identificacao") or f"{n.get('tipo','')} {n.get('numero','')}/{n.get('ano','')}" or (n.get("slug") or "")
         slug = _safe_slug(n.get("slug") or titulo, fallback="norma")
         links = []
-        # política de fontes
         if n.get("tipo") in {"Lei", "Decreto", "lei", "decreto"} and n.get("fonte_planalto"):
             links.append(_a(n["fonte_planalto"], "Planalto"))
         if n.get("fonte_dou"):
@@ -95,13 +94,14 @@ def build_site(norms_json: str, out_dir: str):
         titulo = n.get("identificacao") or n.get("slug") or f"Norma {i}"
         slug = _safe_slug(n.get("slug") or titulo, fallback=f"norma-{i}")
 
-        # botões de texto (se existirem)
+        # botões de texto
         btns = []
         if _is_url(n.get("texto_original")):
             btns.append(_a(n["texto_original"], "Texto original"))
         if _is_url(n.get("texto_compilado")):
             btns.append(_a(n["texto_compilado"], "Texto compilado"))
-        btns_html = " ".join([f"<span class='btns'>{b}</span>" for b in btns])
+        btns_html = " ".join(btns)
+        btns_block = f"<div class='section'>{btns_html}</div>" if btns_html else ""
 
         # fontes
         fontes = []
@@ -110,8 +110,9 @@ def build_site(norms_json: str, out_dir: str):
         if n.get("fonte_dou"):
             fontes.append(_a(n["fonte_dou"], "Ver no DOU"))
         fontes_html = SEP.join([x for x in fontes if x]) or "<span class='muted'>—</span>"
+        fontes_block = f"<div class='section'><strong>Fontes oficiais:</strong> {fontes_html}</div>"
 
-        # listas de relações — aceitam identificações ou slugs, separados por ';' na planilha
+        # resolver listas de relações
         def _resolve_list(val):
             if not val:
                 return []
@@ -120,18 +121,22 @@ def build_site(norms_json: str, out_dir: str):
             for it in items:
                 key = it.strip().lower()
                 target_slug = slug_by_key.get(key) or slug_by_key.get(_safe_slug(key))
-                label = it
+                label = html.escape(it)
                 if target_slug:
-                    out_links.append(f'<a href="{target_slug}.html">{html.escape(label)}</a>')
+                    out_links.append(f'<a href="{target_slug}.html">{label}</a>')
                 else:
-                    out_links.append(html.escape(label))
+                    out_links.append(label)
             return out_links
 
         altera = _resolve_list(n.get("altera") or n.get("altera_ids") or n.get("alteracoes"))
         alterado_por = _resolve_list(n.get("alterado_por") or n.get("alterado_por_ids"))
         correlatas = _resolve_list(n.get("relacionados") or n.get("legislacao_correlata"))
 
-        # tabela de metadados (todas as colunas da planilha)
+        altera_block = f"<div class='section'><strong>Alterações que ESTE ato faz:</strong> {SEP.join(altera)}</div>" if altera else ""
+        alterado_block = f"<div class='section'><strong>Este ato foi ALTERADO por:</strong> {SEP.join(alterado_por)}</div>" if alterado_por else ""
+        correlatas_block = f"<div class='section'><strong>Legislação correlata:</strong> {SEP.join(correlatas)}</div>" if correlatas else ""
+
+        # metadados: todas as colunas da planilha
         meta_rows = []
         raw = n.get("raw") or {}
         raw_cols = n.get("raw_columns") or list(raw.keys())
@@ -146,7 +151,7 @@ def build_site(norms_json: str, out_dir: str):
             "</div>"
         )
 
-        detail_html = (
+        detail_header = (
             "<!doctype html><meta charset='utf-8'>"
             f"<title>{html.escape(titulo)}</title>"
             f"{_css()}"
@@ -154,13 +159,14 @@ def build_site(norms_json: str, out_dir: str):
             f"<h2>{html.escape(titulo)}</h2>"
             f"<p><strong>Vigencia:</strong> {html.escape(n.get('vigencia','')) or '—'} "
             f"{SEP}<strong>Tema:</strong> {html.escape(n.get('tema','')) or '—'}</p>"
-            f"{('<div class=\"section\">' + btns_html + '</div>') if btns_html else ''}"
-            f"<div class='section'><strong>Fontes oficiais:</strong> {fontes_html}</div>"
-            f"{('<div class=\"section\"><strong>Alterações que ESTE ato faz:</strong> ' + SEP.join(altera) + '</div>') if altera else ''}"
-            f"{('<div class=\"section\"><strong>Este ato foi ALTERADO por:</strong> ' + SEP.join(alterado_por) + '</div>') if alterado_por else ''}"
-            f"{('<div class=\"section\"><strong>Legislação correlata:</strong> ' + SEP.join(correlatas) + '</div>') if correlatas else ''}"
+        )
+
+        detail_body = btns_block + fontes_block + altera_block + alterado_block + correlatas_block
+        detail_footer = (
             "<hr>"
-            "<p><em>Texto compilado</em> e histórico detalhado virão aqui em versões futuras.</p>"
+            "<p><em>Texto compilado</em> e histórico virão aqui em versões futuras.</p>"
             f"{meta_table}"
         )
+
+        detail_html = detail_header + detail_body + detail_footer
         (out / f"{slug}.html").write_text(detail_html, encoding="utf-8")
