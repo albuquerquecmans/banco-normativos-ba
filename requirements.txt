@@ -6,6 +6,7 @@ beautifulsoup4
 lxml
 click
 python-slugify
+jsonschema
 
 # dev
 pytest
