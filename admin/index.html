@@ -1,0 +1,114 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Admin · Banco de Normativos BA</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--fg:#0f172a;--muted:#475569;--bg:#f8fafc;--card:#ffffff;--pri:#2563eb}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; margin:0; color:var(--fg); background:var(--bg)}
+  .wrap{max-width:860px;margin:40px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid #e2e8f0;border-radius:16px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.04);margin-bottom:20px}
+  h1{font-size:1.6rem;margin:0 0 8px}
+  p{color:var(--muted)}
+  a.btn{display:inline-block;background:var(--pri);color:#fff;padding:10px 14px;border-radius:10px;text-decoration:none}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  label{display:block;font-weight:600;margin:10px 0 6px}
+  input,select,textarea{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px}
+  small{color:var(--muted)}
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+  .muted{color:var(--muted)}
+  code{background:#eef2ff;border-radius:6px;padding:2px 6px}
+</style>
+<div class="wrap">
+  <h1>Admin · Banco de Normativos de Benefícios Assistenciais</h1>
+  <p class="muted">Este painel auxilia a abrir <strong>Issues</strong> com os dados do ato. O GitHub Actions converte a issue em <strong>PR</strong> com um patch JSON; ao aprovar e dar merge, o site é republicado.</p>
+
+  <div class="card">
+    <h2>Novo ato</h2>
+    <div class="row">
+      <div>
+        <label>Tipo</label>
+        <select id="tipo">
+          <option>Lei</option><option>Medida Provisória</option><option>Decreto</option>
+          <option>Instrução Normativa</option><option>Instrução Operacional</option>
+          <option>Memorando Circular</option><option>Mensagem</option><option>Orientação Interna</option>
+          <option>Portaria</option><option>Portaria Conjunta</option><option>Portaria INSS</option>
+          <option>Portaria Interministerial</option><option>Portaria MDS</option><option>Resolução</option>
+        </select>
+      </div>
+      <div>
+        <label>Número</label>
+        <input id="numero" placeholder="ex: 123">
+      </div>
+      <div>
+        <label>Ano</label>
+        <input id="ano" placeholder="ex: 2025">
+      </div>
+      <div>
+        <label>Data (AAAA-MM-DD)</label>
+        <input id="data" placeholder="2025-08-05">
+      </div>
+      <div>
+        <label>Situação</label>
+        <select id="situacao">
+          <option>Vigente</option><option>Revogada</option><option>Suspensa</option><option>Não vigente</option>
+        </select>
+      </div>
+      <div>
+        <label>Origem (Órgão)</label>
+        <input id="origem" placeholder="MDS/INSS/...">
+      </div>
+    </div>
+    <label>Identificação (como publicado)</label>
+    <input id="identificacao" placeholder="Ex.: Portaria MDS nº 123, de 5 de agosto de 2025">
+    <label>Ementa</label>
+    <textarea id="ementa" rows="3" placeholder="Resumo do ato..."></textarea>
+    <div class="row">
+      <div>
+        <label>Link DOU</label>
+        <input id="dou" placeholder="https://www.in.gov.br/...">
+      </div>
+      <div>
+        <label>Link Planalto (lei/decreto)</label>
+        <input id="planalto" placeholder="https://www.planalto.gov.br/...">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Altera (um por linha)</label>
+        <textarea id="altera" rows="3" placeholder="Lei nº 8.742/1993&#10;Portaria MDS nº 123/2024"></textarea>
+      </div>
+      <div>
+        <label>Alterado por (um por linha)</label>
+        <textarea id="alterado_por" rows="3" placeholder="Portaria Conjunta MDS/MPS nº 33/2025"></textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="btn" id="btnIssue" href="#" target="_blank" rel="noreferrer">Abrir Issue “Novo ato”</a>
+      <small>Você será levado ao GitHub com o formulário para revisão/submit.</small>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Editar/ajustar ato existente</h2>
+    <p>Use o formulário “Alteração/correção de ato existente”.</p>
+    <div class="actions">
+      <a class="btn" href="../issues/new?template=alterar_ato.yml">Abrir Issue “Alterar ato”</a>
+      <small>Prencha o slug/identificador e os campos a alterar.</small>
+    </div>
+  </div>
+
+  <p class="muted">Obs.: É necessário ser colaborador do repositório para criar Issues/PRs.</p>
+</div>
+<script>
+const repoBase = location.origin + location.pathname.replace(/\/admin\/.*$/,'/');
+const issueNew = repoBase + 'issues/new?template=novo_ato.yml';
+document.getElementById('btnIssue').addEventListener('click', (e)=>{
+  e.preventDefault();
+  // Pré-preenche apenas o título (Issue Forms não aceitam pré-preencher campos estruturados por URL)
+  const t = document.getElementById('tipo').value;
+  const n = document.getElementById('numero').value.trim();
+  const a = document.getElementById('ano').value.trim();
+  const title = encodeURIComponent(`Novo ato: ${t} ${n}/${a}`.replace(/\s+$/,''));
+  window.open(issueNew + '&title=' + title, '_blank', 'noreferrer');
+});
+</script>

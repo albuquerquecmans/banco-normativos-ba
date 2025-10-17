@@ -1,0 +1,84 @@
+name: Issue → PR (novo ato)
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  to_pr:
+    if: contains(github.event.issue.labels.*.name, 'novo-ato')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse Issue (Issue Forms) → JSON patch
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+            function pick(section) {
+              // Captura bloco após "### <Section>\n\n<valor>"
+              const re = new RegExp(`###\\s+${section}\\s*[\\r\\n]+([\\s\\S]*?)(?=\\n###|$)`, 'i');
+              const m = body.match(re);
+              return m ? m[1].trim() : "";
+            }
+            const rec = {
+              tipo:           pick("Tipo"),
+              numero:         pick("Número"),
+              ano:            pick("Ano"),
+              data:           pick("Data de publicação"),
+              origem:         pick("Órgão/Origem"),
+              vigencia:       pick("Situação \\(Vigência\\)"),
+              identificacao:  pick("Identificação \\(como publicado\\)"),
+              ementa:         pick("Ementa \\(resumo\\)"),
+              tema:           pick("Tema\\(s\\)"),
+              fonte_dou:      pick("Link do DOU"),
+              fonte_planalto: pick("Link do Planalto \\(leis/decretos\\)"),
+              altera:         pick("Este ato ALTERA quais outros\\? \\(um por linha\\)"),
+              alterado_por:   pick("Este ato foi ALTERADO por quais outros\\? \\(um por linha\\)")
+            };
+            // normaliza listas
+            rec.altera = rec.altera ? rec.altera.split(/\r?\n/).filter(Boolean).join("; ") : "";
+            rec.alterado_por = rec.alterado_por ? rec.alterado_por.split(/\r?\n/).filter(Boolean).join("; ") : "";
+
+            const fs = require('fs');
+            const path = `data/patches/issue-${context.payload.issue.number}.json`;
+            require('fs').mkdirSync('data/patches', {recursive:true});
+            fs.writeFileSync(path, JSON.stringify(rec, null, 2), {encoding:'utf-8'});
+            core.setOutput('patch_path', path);
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "patch: novo ato a partir da issue #${{ github.event.issue.number }}"
+          title: "Novo ato (issue #${{ github.event.issue.number }})"
+          body: "Gerado automaticamente a partir da issue #${{ github.event.issue.number }}."
+          branch: "issue/${{ github.event.issue.number }}/novo-ato"
+          labels: "auto,novo-ato"
+          add-paths: |
+            data/patches/issue-${{ github.event.issue.number }}.json
+
+      - name: Comment with PR link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:issue/${context.payload.issue.number}/novo-ato`,
+              state: 'open'
+            });
+            if (prs.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                body: `PR aberto: #${prs.data[0].number}`
+              });
+            }
