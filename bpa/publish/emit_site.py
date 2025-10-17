@@ -61,7 +61,7 @@ def build_site(norms_json: str, out_dir: str):
     if p.exists():
         norms = json.loads(p.read_text(encoding="utf-8"))
 
-    # índice auxiliar para cruzar relações
+    # índice auxiliar
     slug_by_key = {}
     for n in norms:
         s = _safe_slug(n.get("slug") or n.get("identificacao") or "")
@@ -73,9 +73,7 @@ def build_site(norms_json: str, out_dir: str):
             slug_by_key[ident] = s
 
     # ===== INDEX (UI) =====
-    # embute o JSON no HTML para a tabela dinâmica
     data_js = json.dumps(norms, ensure_ascii=False)
-
     tipos_check = "".join(
         "<label class='chip'><input type='checkbox' name='tipo' value='" + html.escape(t) + "'> " + html.escape(t) + "</label>"
         for t in TIPOS_FIXOS
@@ -105,35 +103,43 @@ def build_site(norms_json: str, out_dir: str):
         "</div>"
         "<script>"
         "const DATA = " + data_js + ";"
+        # helpers robustas que caem para raw quando o canônico está vazio
+        "function val(x){return (x||'').toString().trim();}"
         "function slug(s){return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9\\- ]/g,'').replace(/[\\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');}"
-        "function val(x){return (x||'').toString();}"
-        "function getOrigem(n){return val(n.origem|| (n.raw && (n.raw['Origem']||n.raw['Órgão']||n.raw['ORIGEM'])) );}"
-        "function getTema(n){return val(n.tema|| (n.raw && (n.raw['TEMA']||n.raw['Tema'])) );}"
-        "function getData(n){return val(n.data|| (n.raw && (n.raw['DATA']||n.raw['Data'])) );}"
+        "function pickRaw(n,keys){ if(!n||!n.raw) return ''; for(const k of keys){ if(n.raw[k]!=null && String(n.raw[k]).trim()!=='') return String(n.raw[k]).trim(); } return ''; }"
+        "function getTipo(n){ return val(n.tipo) || pickRaw(n,['TIPO','Tipo','tipo']); }"
+        "function getNumero(n){ return val(n.numero) || pickRaw(n,['NÚMERO','NUMERO','Número','Numero','numero']); }"
+        "function getAno(n){ return val(n.ano) || pickRaw(n,['ANO','Ano','ano']); }"
+        "function getTema(n){ return val(n.tema) || pickRaw(n,['TEMA','Tema','tema']); }"
+        "function getOrigem(n){ return val(n.origem) || pickRaw(n,['Origem','Órgão','ORIGEM','Orgão','Órgão/Unidade']); }"
+        "function getData(n){ return val(n.data) || pickRaw(n,['DATA','Data','data']); }"
+
         "function unique(xs){return Array.from(new Set(xs.filter(Boolean)));}"
         "function fillOrigem(){"
         "  const opts = unique(DATA.map(getOrigem)).sort();"
         "  const sel = document.getElementById('f-origem');"
         "  opts.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o||'—';sel.appendChild(op);});"
         "}"
+
         "function render(rows){"
         "  const tb=document.getElementById('grid'); tb.innerHTML='';"
         "  if(rows.length===0){tb.innerHTML='<tr><td colspan=6 class=\"muted\">Nenhum resultado.</td></tr>';return;}"
         "  rows.forEach(n=>{"
-        "    const id = n.identificacao || (n.tipo+' '+(n.numero||'')+'/'+(n.ano||''));"
+        "    const id = n.identificacao || (getTipo(n)+' '+(getNumero(n)||'')+'/'+(getAno(n)||''));"
         "    const s = slug(n.slug || id);"
-        "    const ementa = val(n.ementa || (n.raw && (n.raw['EMENTA']||n.raw['Ementa'])));"
+        "    const ementa = val(n.ementa) || pickRaw(n,['EMENTA','Ementa']);"
         "    const linha = '<tr>' +"
-        "      '<td>'+ (n.tipo||'') +'</td>' +"
-        "      '<td><a href=\"'+ s +'.html\">'+ (n.numero||'') +'</a></td>' +"
+        "      '<td>'+ (getTipo(n)||'') +'</td>' +"
+        "      '<td><a href=\"'+ s +'.html\">'+ (getNumero(n)||'') +'</a></td>' +"
         "      '<td>'+ (getData(n)||'') +'</td>' +"
         "      '<td>'+ (getOrigem(n)||'') +'</td>' +"
-        "      '<td>'+ (n.vigencia||'') +'</td>' +"
+        "      '<td>'+ (val(n.vigencia)||'') +'</td>' +"
         "      '<td>'+ (ementa||'') +'</td>' +"
         "    '</tr>';"
         "    tb.insertAdjacentHTML('beforeend', linha);"
         "  });"
         "}"
+
         "function doSearch(){"
         "  const tipos = Array.from(document.querySelectorAll('input[name=tipo]:checked')).map(i=>i.value.toLowerCase());"
         "  const num = document.getElementById('f-numero').value.trim().toLowerCase();"
@@ -143,11 +149,11 @@ def build_site(norms_json: str, out_dir: str):
         "  const origem = document.getElementById('f-origem').value.trim().toLowerCase();"
         "  const sit = document.getElementById('f-situacao').value.trim().toLowerCase();"
         "  const out = DATA.filter(n=>{"
-        "    const t = (n.tipo||'').toLowerCase();"
+        "    const t = (getTipo(n)||'').toLowerCase();"
         "    const okTipo = (tipos.length===0) || tipos.includes(t);"
-        "    const okNum = !num || (val(n.numero).toLowerCase().includes(num));"
-        "    const okAno = !ano || (val(n.ano)===ano);"
-        "    const pack = (val(n.identificacao)+' '+val(n.ementa)).toLowerCase();"
+        "    const okNum = !num || (getNumero(n).toLowerCase().includes(num));"
+        "    const okAno = !ano || (getAno(n)===ano);"
+        "    const pack = (val(n.identificacao)+' '+(val(n.ementa)||'')).toLowerCase();"
         "    const okArg = !arg || pack.includes(arg);"
         "    const okTema = !tema || getTema(n).toLowerCase().includes(tema);"
         "    const okOrigem = !origem || getOrigem(n).toLowerCase()===origem;"
@@ -165,7 +171,7 @@ def build_site(norms_json: str, out_dir: str):
     (out / "index.html").write_text(search_ui, encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
-    # ===== DETALHE =====
+    # ===== DETALHE (sem mudanças) =====
     def links_oficiais(n):
         links = []
         if n.get("tipo") in {"Lei", "Decreto", "lei", "decreto"} and n.get("fonte_planalto"):
@@ -204,7 +210,6 @@ def build_site(norms_json: str, out_dir: str):
         alterado_por = _resolve_list(n.get("alterado_por") or n.get("alterado_por_ids"))
         correlatas = _resolve_list(n.get("relacionados") or n.get("legislacao_correlata"))
 
-        # metadados
         meta_rows = []
         raw = n.get("raw") or {}
         raw_cols = n.get("raw_columns") or list(raw.keys())
