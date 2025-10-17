@@ -1,0 +1,19 @@
+{
+  "tipo": "TIPO",
+  "ano": "ANO",
+  "data": "DATA",
+  "vigencia": "VIGÊNCIA",
+  "identificacao": "IDENTIFICAÇÃO",
+  "ementa": "EMENTA",
+  "tema": "TEMA",
+  "subtemas": "SUBTEMA(S)",
+  "origem": "Origem",
+  "link_planalto": "Link Planalto",
+  "link_dou": "Link DOU",
+  "link": "URL",
+  "texto_original": "Texto original",
+  "texto_compilado": "Texto compilado",
+  "altera": "Altera",
+  "alterado_por": "Alterado por",
+  "relacionados": "Legislação correlata"
+}
