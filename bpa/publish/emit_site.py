@@ -1,5 +1,4 @@
-﻿# bpa/publish/emit_site.py
-from pathlib import Path
+﻿from pathlib import Path
 import json, html, re
 
 SEP = " · "
@@ -22,8 +21,8 @@ def _is_url(v: str) -> bool:
 
 def _safe_slug(s: str, fallback: str = "norma"):
     s = (s or "").lower()
-    s = re.sub(r"[^a-z0-9\-]+", "-", s)
-    s = s.replace("/", "-").replace("\\", "-").replace(".", "-")
+    s = re.sub(r"[^a-z0-9\\-]+", "-", s)
+    s = s.replace("/", "-").replace("\\\\", "-").replace(".", "-")
     s = re.sub(r"-{2,}", "-", s).strip("-")
     return s or fallback
 
@@ -61,7 +60,7 @@ def build_site(norms_json: str, out_dir: str):
     if p.exists():
         norms = json.loads(p.read_text(encoding="utf-8"))
 
-    # índice auxiliar
+    # índice
     slug_by_key = {}
     for n in norms:
         s = _safe_slug(n.get("slug") or n.get("identificacao") or "")
@@ -72,14 +71,14 @@ def build_site(norms_json: str, out_dir: str):
         if ident:
             slug_by_key[ident] = s
 
-    # ===== INDEX (UI) =====
+    # ===== INDEX =====
     data_js = json.dumps(norms, ensure_ascii=False)
     tipos_check = "".join(
         "<label class='chip'><input type='checkbox' name='tipo' value='" + html.escape(t) + "'> " + html.escape(t) + "</label>"
         for t in TIPOS_FIXOS
     )
 
-    search_ui = (
+    index_html = (
         "<!doctype html><meta charset='utf-8'>"
         "<title>banco-normativos-ba</title>"
         f"{_css()}"
@@ -103,16 +102,44 @@ def build_site(norms_json: str, out_dir: str):
         "</div>"
         "<script>"
         "const DATA = " + data_js + ";"
-        # helpers robustas que caem para raw quando o canônico está vazio
-        "function val(x){return (x||'').toString().trim();}"
+        "function val(x){return (x??'').toString().trim();}"
         "function slug(s){return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9\\- ]/g,'').replace(/[\\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');}"
         "function pickRaw(n,keys){ if(!n||!n.raw) return ''; for(const k of keys){ if(n.raw[k]!=null && String(n.raw[k]).trim()!=='') return String(n.raw[k]).trim(); } return ''; }"
-        "function getTipo(n){ return val(n.tipo) || pickRaw(n,['TIPO','Tipo','tipo']); }"
-        "function getNumero(n){ return val(n.numero) || pickRaw(n,['NÚMERO','NUMERO','Número','Numero','numero']); }"
-        "function getAno(n){ return val(n.ano) || pickRaw(n,['ANO','Ano','ano']); }"
+
+        // --------- NOVOS HELPERs ROBUSTOS ----------
+        "function getIdent(n){return val(n.identificacao) || pickRaw(n,['IDENTIFICAÇÃO','Identificação','Identificacao','identificação']);}"
+        "function inferTipoFromIdent(id){"
+        "  const s=id.toLowerCase();"
+        "  const map=["
+        "    ['portaria interministerial','Portaria Interministerial'],"
+        "    ['portaria conjunta','Portaria Conjunta'],"
+        "    ['portaria inss','Portaria INSS'],"
+        "    ['portaria mds','Portaria MDS'],"
+        "    ['instrução normativa','Instrução Normativa'],"
+        "    ['instrução operacional','Instrução Operacional'],"
+        "    ['memorando circular','Memorando Circular'],"
+        "    ['orientação interna','Orientação Interna'],"
+        "    ['medida provisória','Medida Provisória'],"
+        "    ['resolução','Resolução'],"
+        "    ['decreto','Decreto'],"
+        "    ['lei','Lei'],"
+        "    ['portaria','Portaria']"
+        "  ];"
+        "  for(const [k,v] of map){ if(s.includes(k)) return v; }"
+        "  return '';"
+        "}"
+        "function getTipo(n){ return val(n.tipo) || pickRaw(n,['TIPO','Tipo','tipo']) || inferTipoFromIdent(getIdent(n)); }"
+
+        "function inferNumeroFromIdent(id){"
+        "  const m = id.match(/n[ºo]\\s*([0-9\\.\\-\\/]+)/i) || id.match(/\\b(\\d{1,6}[\\./]\\d{4})\\b/);"
+        "  return m ? m[1] : '';"
+        "}"
+        "function getNumero(n){ return val(n.numero) || pickRaw(n,['NÚMERO','NUMERO','Número','Numero','numero']) || inferNumeroFromIdent(getIdent(n)); }"
+        "function getAno(n){ return val(n.ano) || pickRaw(n,['ANO','Ano','ano']) || (getNumero(n).match(/(\\d{4})$/)||[])[1] || ''; }"
         "function getTema(n){ return val(n.tema) || pickRaw(n,['TEMA','Tema','tema']); }"
         "function getOrigem(n){ return val(n.origem) || pickRaw(n,['Origem','Órgão','ORIGEM','Orgão','Órgão/Unidade']); }"
         "function getData(n){ return val(n.data) || pickRaw(n,['DATA','Data','data']); }"
+        // -------------------------------------------
 
         "function unique(xs){return Array.from(new Set(xs.filter(Boolean)));}"
         "function fillOrigem(){"
@@ -125,12 +152,13 @@ def build_site(norms_json: str, out_dir: str):
         "  const tb=document.getElementById('grid'); tb.innerHTML='';"
         "  if(rows.length===0){tb.innerHTML='<tr><td colspan=6 class=\"muted\">Nenhum resultado.</td></tr>';return;}"
         "  rows.forEach(n=>{"
-        "    const id = n.identificacao || (getTipo(n)+' '+(getNumero(n)||'')+'/'+(getAno(n)||''));"
+        "    const id = getIdent(n) || (getTipo(n)+' '+(getNumero(n)||'')+'/'+(getAno(n)||''));"
         "    const s = slug(n.slug || id);"
         "    const ementa = val(n.ementa) || pickRaw(n,['EMENTA','Ementa']);"
+        "    const numeroTxt = getNumero(n) || id;  // usa Identificação quando número faltou"
         "    const linha = '<tr>' +"
         "      '<td>'+ (getTipo(n)||'') +'</td>' +"
-        "      '<td><a href=\"'+ s +'.html\">'+ (getNumero(n)||'') +'</a></td>' +"
+        "      '<td><a href=\"'+ s +'.html\">'+ numeroTxt +'</a></td>' +"
         "      '<td>'+ (getData(n)||'') +'</td>' +"
         "      '<td>'+ (getOrigem(n)||'') +'</td>' +"
         "      '<td>'+ (val(n.vigencia)||'') +'</td>' +"
@@ -153,10 +181,10 @@ def build_site(norms_json: str, out_dir: str):
         "    const okTipo = (tipos.length===0) || tipos.includes(t);"
         "    const okNum = !num || (getNumero(n).toLowerCase().includes(num));"
         "    const okAno = !ano || (getAno(n)===ano);"
-        "    const pack = (val(n.identificacao)+' '+(val(n.ementa)||'')).toLowerCase();"
+        "    const pack = (getIdent(n)+' '+(val(n.ementa)||'')).toLowerCase();"
         "    const okArg = !arg || pack.includes(arg);"
-        "    const okTema = !tema || getTema(n).toLowerCase().includes(tema);"
-        "    const okOrigem = !origem || getOrigem(n).toLowerCase()===origem;"
+        "    const okTema = !tema || (getTema(n).toLowerCase().includes(tema));"
+        "    const okOrigem = !origem || (getOrigem(n).toLowerCase()===origem);"
         "    const okSit = !sit || (val(n.vigencia).toLowerCase()===sit);"
         "    return okTipo && okNum && okAno && okArg && okTema && okOrigem && okSit;"
         "  });"
@@ -168,10 +196,10 @@ def build_site(norms_json: str, out_dir: str):
         "</script>"
     )
 
-    (out / "index.html").write_text(search_ui, encoding="utf-8")
+    (out / "index.html").write_text(index_html, encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
-    # ===== DETALHE (sem mudanças) =====
+    # ===== DETALHE (inalterado) =====
     def links_oficiais(n):
         links = []
         if n.get("tipo") in {"Lei", "Decreto", "lei", "decreto"} and n.get("fonte_planalto"):
@@ -183,7 +211,6 @@ def build_site(norms_json: str, out_dir: str):
     for i, n in enumerate(norms, start=1):
         titulo = n.get("identificacao") or n.get("slug") or f"Norma {i}"
         slug = _safe_slug(n.get("slug") or titulo, fallback="norma-" + str(i))
-
         btns = []
         if _is_url(n.get("texto_original")):
             btns.append(_a(n["texto_original"], "Texto original"))
@@ -217,12 +244,7 @@ def build_site(norms_json: str, out_dir: str):
             val = raw.get(col, "")
             cell = _a(val, val) if _is_url(val) else html.escape(val)
             meta_rows.append(f"<tr><th align='left'>{html.escape(col)}</th><td>{cell}</td></tr>")
-        meta_table = (
-            "<div class='section'>"
-            "<h3>Metadados da planilha</h3>"
-            "<table>" + "".join(meta_rows) + "</table>"
-            "</div>"
-        )
+        meta_table = "<div class='section'><h3>Metadados da planilha</h3><table>" + "".join(meta_rows) + "</table></div>"
 
         detail_html = (
             "<!doctype html><meta charset='utf-8'>"
