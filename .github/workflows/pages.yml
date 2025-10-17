@@ -46,29 +46,44 @@ jobs:
             done
           fi
 
-          # Garante que o norms.json existe (pode estar versionado)
+          # Garante que o norms.json exista (pode estar versionado)
           if [[ ! -f data/norms.json ]]; then
             echo "[]">data/norms.json
             echo ">> ATENÇÃO: data/norms.json não existia; criado vazio."
           fi
 
           # Mescla patches vindos de Issues → PR (se houver)
-          python scripts/merge_patches.py || true
+          if [[ -f scripts/merge_patches.py ]]; then
+            python scripts/merge_patches.py || true
+          fi
 
-          # Validação de schema (instala jsonschema se faltar)
-          python scripts/validate_json.py --schema data/schema.json --data data/norms.json
+          # Validação de schema (usa scripts/validate_json.py)
+          if [[ -f scripts/validate_json.py ]]; then
+            python scripts/validate_json.py --schema data/schema.json --data data/norms.json
+          fi
 
-          echo ">> Publicando (build local do _site)..."
+          echo ">> Publicando (build local do _site)…"
           python -m bpa.cli publish --out _site
           : > _site/.nojekyll
+
+      - name: Ensure norms.json in _site/data
+        shell: bash
+        run: |
+          mkdir -p _site/data
+          if [[ -f data/norms.json ]]; then
+            cp data/norms.json _site/data/norms.json
+            echo ">> Copiado data/norms.json → _site/data/norms.json"
+          else
+            echo ">> AVISO: data/norms.json não existe na build"
+          fi
 
       - name: Include admin static (if present)
         shell: bash
         run: |
-          if [ -d "admin" ]; then
+          if [[ -d "admin" ]]; then
             mkdir -p _site/admin
             cp -R admin/* _site/admin/
-            echo ">> Copiado admin/ para _site/admin/"
+            echo ">> Copiado admin/ → _site/admin/"
           else
             echo ">> admin/ não existe no repositório; nada a copiar."
           fi

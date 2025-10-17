@@ -14,11 +14,11 @@
   a.btn{display:inline-block;background:var(--pri);color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px}
   a.btn.secondary{background:#0ea5e9}
   .hint{font-size:.92rem;color:var(--muted)}
-  input,select{padding:10px;border:1px solid #cbd5e1;border-radius:10px;width:100%}
+  input{padding:10px;border:1px solid #cbd5e1;border-radius:10px;width:100%}
   label{display:block;font-weight:600;margin:8px 0 6px}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .pill{background:#eef2ff;color:#1e293b;border-radius:999px;padding:4px 10px;font-size:.85rem}
+  .warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:12px;padding:10px 12px;margin-top:10px}
 </style>
 
 <div class="wrap">
@@ -35,17 +35,9 @@
 
   <div class="card">
     <h2>Alterar ato existente</h2>
-    <div class="grid">
-      <div>
-        <label for="busca">Buscar ato (identificação, número, tipo, ano…) </label>
-        <input id="busca" list="atos" placeholder="ex: Portaria MDS nº 123, 2024 / Lei 8742" autocomplete="off">
-        <datalist id="atos"></datalist>
-      </div>
-      <div>
-        <label>Slug selecionado</label>
-        <input id="slug" readonly placeholder="— selecione um ato acima —">
-      </div>
-    </div>
+    <label for="busca">Buscar ato (identificação, número, tipo, ano…)</label>
+    <input id="busca" list="atos" placeholder="ex: Portaria MDS nº 123, 2024 / Lei 8742" autocomplete="off">
+    <datalist id="atos"></datalist>
 
     <div id="resumo" class="row" style="margin-top:10px;display:none">
       <span class="pill" id="pTipo"></span>
@@ -59,6 +51,8 @@
       <a id="btnAlterar" class="btn" target="_blank" rel="noreferrer" aria-disabled="true">Abrir “Alterar ato”</a>
       <span class="hint">O título da issue incluirá o slug selecionado.</span>
     </div>
+
+    <div id="warn" class="warn" style="display:none"></div>
   </div>
 
   <div class="card">
@@ -68,17 +62,46 @@
 
 <script>
 (function () {
-  // Descobre owner/repo a partir do domínio de Pages (ajuste manual se usar domínio customizado)
+  // Descobre owner/repo a partir do domínio de Pages; ajuste manual se usar domínio customizado
   const owner = (location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] : 'albuquerquecmans');
   const repo  = (location.pathname.split('/').filter(Boolean)[0] || 'banco-normativos-ba');
   const issuesBase = `https://github.com/${owner}/${repo}/issues/new`;
+
   document.getElementById('btnNovo').href    = `${issuesBase}?template=novo_ato.yml`;
   document.getElementById('btnAlterar').href = `${issuesBase}?template=alterar_ato.yml`;
 
-  // Carrega lista de atos de ../data/norms.json e preenche o datalist
+  // Resolve robustamente a URL do norms.json
+  function resolveNormsUrls() {
+    const root = `/${repo}`;
+    const candidates = [
+      `${root}/data/norms.json`, // pages padrão
+      '../data/norms.json',      // relativo a /admin/
+      '/data/norms.json'         // fallback
+    ];
+    return [...new Set(candidates)];
+  }
+
+  // Tenta carregar de múltiplas URLs até uma funcionar
+  async function loadNorms() {
+    const urls = resolveNormsUrls();
+    let lastErr;
+    for (const url of urls) {
+      try {
+        const r = await fetch(url, {cache: 'no-store'});
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        console.log('[admin] norms de', url, 'registros=', Array.isArray(data)?data.length:'?');
+        return data;
+      } catch (e) {
+        console.warn('[admin] falhou', url, e);
+        lastErr = e;
+      }
+    }
+    throw lastErr || new Error('Falha ao carregar norms.json');
+  }
+
   const busca = document.getElementById('busca');
   const datalist = document.getElementById('atos');
-  const slugEl = document.getElementById('slug');
   const resumo = document.getElementById('resumo');
   const pTipo = document.getElementById('pTipo');
   const pNum  = document.getElementById('pNum');
@@ -86,35 +109,37 @@
   const pSit  = document.getElementById('pSit');
   const linkVer = document.getElementById('linkVer');
   const btnAlterar = document.getElementById('btnAlterar');
+  const warn = document.getElementById('warn');
 
   let atos = [];
-  const pathJSON = '../data/norms.json'; // relativo a /admin/
 
-  fetch(pathJSON, {cache: 'no-store'})
-    .then(r => r.json())
-    .then(data => {
-      atos = Array.isArray(data) ? data : [];
-      // monta opções: "Identificação (slug)"
-      const frag = document.createDocumentFragment();
-      atos.forEach(n => {
-        const idt = (n.identificacao || '').trim();
-        const opt = document.createElement('option');
-        opt.value = idt ? `${idt} (${n.slug})` : n.slug;
-        opt.dataset.slug = n.slug;
-        frag.appendChild(opt);
-      });
-      datalist.appendChild(frag);
-    })
-    .catch(() => { /* silencia, admin continua útil sem a lista */ });
+  loadNorms().then(data => {
+    atos = Array.isArray(data) ? data : [];
+    if (!atos.length) {
+      warn.style.display='block';
+      warn.textContent = 'Nenhum ato encontrado em data/norms.json.';
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    atos.forEach(n => {
+      const idt = (n.identificacao || '').trim();
+      const opt = document.createElement('option');
+      opt.value = idt ? `${idt} (${n.slug})` : n.slug;
+      frag.appendChild(opt);
+    });
+    datalist.appendChild(frag);
+  }).catch(err => {
+    warn.style.display='block';
+    warn.innerHTML = 'Não foi possível carregar <code>data/norms.json</code>. Verifique se o arquivo está publicado. ' +
+                     'Abra o console (F12) para detalhes.';
+    console.error('[admin] erro ao carregar norms.json:', err);
+  });
 
   function encontrarPorEntrada(txt) {
     if (!txt) return null;
-    // tenta pegar slug entre parênteses:
     const m = txt.match(/\(([^)]+)\)\s*$/);
     const slug = m ? m[1] : null;
     if (slug) return atos.find(a => a.slug === slug) || null;
-
-    // fallback: busca por identificação parcial
     const q = txt.toLowerCase();
     return atos.find(a =>
       (a.identificacao||'').toLowerCase().includes(q) ||
@@ -126,8 +151,7 @@
   }
 
   function atualizarResumo(n) {
-    if (!n) { resumo.style.display='none'; slugEl.value=''; btnAlterar.setAttribute('aria-disabled','true'); return; }
-    slugEl.value = n.slug || '';
+    if (!n) { resumo.style.display='none'; btnAlterar.setAttribute('aria-disabled','true'); return; }
     pTipo.textContent = n.tipo || '—';
     pNum.textContent  = 'Nº ' + (n.numero ?? '—');
     pAno.textContent  = String(n.ano ?? '—');
@@ -135,7 +159,6 @@
     linkVer.href = n.slug ? `../${n.slug}.html` : '../';
     resumo.style.display='flex';
 
-    // título do Issue Form com slug para facilitar
     const titulo = encodeURIComponent(`Alterar ato: ${n.slug}`);
     btnAlterar.href = `${issuesBase}?template=alterar_ato.yml&title=${titulo}`;
     btnAlterar.removeAttribute('aria-disabled');
@@ -146,7 +169,6 @@
     atualizarResumo(n);
   });
   busca.addEventListener('input', () => {
-    // ao digitar, esconda o resumo até confirmar
     resumo.style.display='none';
     btnAlterar.setAttribute('aria-disabled','true');
   });
