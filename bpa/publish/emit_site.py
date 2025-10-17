@@ -1,9 +1,8 @@
-﻿from pathlib import Path
-import json
-import html
-import re
+﻿# bpa/publish/emit_site.py
+from pathlib import Path
+import json, html, re
 
-SEP = " · "  # separador de links
+SEP = " · "
 
 def _a(href, label):
     if not href:
@@ -17,6 +16,9 @@ def _safe_slug(s: str, fallback: str = "norma"):
     s = re.sub(r"-{2,}", "-", s).strip("-")
     return s or fallback
 
+def _is_url(v: str) -> bool:
+    return bool(v) and re.match(r"^https?://", v)
+
 def build_site(norms_json: str, out_dir: str):
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -24,8 +26,7 @@ def build_site(norms_json: str, out_dir: str):
     norms = []
     p = Path(norms_json)
     if p.exists():
-        with open(p, "r", encoding="utf-8") as f:
-            norms = json.load(f)
+        norms = json.loads(p.read_text(encoding="utf-8"))
 
     # -------- index.html --------
     rows = []
@@ -69,18 +70,33 @@ def build_site(norms_json: str, out_dir: str):
 
     # -------- detalhes por norma --------
     for i, n in enumerate(norms, start=1):
-        links = []
-        if n.get("tipo") in {"Lei", "Decreto", "lei", "decreto"}:
-            if n.get("fonte_planalto"):
-                links.append(_a(n["fonte_planalto"], "Ver no Planalto"))
-            if n.get("fonte_dou"):
-                links.append(_a(n["fonte_dou"], "Ver no DOU"))
-        else:
-            if n.get("fonte_dou"):
-                links.append(_a(n["fonte_dou"], "Ver no DOU"))
-
         titulo = n.get("identificacao") or n.get("slug") or f"Norma {i}"
         slug = _safe_slug(n.get("slug") or titulo, fallback=f"norma-{i}")
+
+        # construir links “oficiais”
+        links = []
+        if n.get("tipo") in {"Lei", "Decreto", "lei", "decreto"} and n.get("fonte_planalto"):
+            links.append(_a(n["fonte_planalto"], "Ver no Planalto"))
+        if n.get("fonte_dou"):
+            links.append(_a(n["fonte_dou"], "Ver no DOU"))
+        links_html = SEP.join([x for x in links if x])
+
+        # tabela de metadados: todos os campos originais da planilha
+        meta_rows = []
+        raw = n.get("raw") or {}
+        raw_cols = n.get("raw_columns") or list(raw.keys())
+        for col in raw_cols:
+            val = raw.get(col, "")
+            cell = html.escape(val)
+            if _is_url(val):
+                cell = _a(val, val)
+            meta_rows.append(f"<tr><th align='left'>{html.escape(col)}</th><td>{cell}</td></tr>")
+        meta_table = (
+            "<h3>Metadados da planilha</h3>"
+            "<table border='1' cellpadding='6' cellspacing='0'>"
+            f"{''.join(meta_rows)}"
+            "</table>"
+        )
 
         detail_html = (
             "<!doctype html><meta charset='utf-8'>"
@@ -89,8 +105,9 @@ def build_site(norms_json: str, out_dir: str):
             f"<h2>{html.escape(titulo)}</h2>"
             f"<p><strong>Vigencia:</strong> {html.escape(n.get('vigencia',''))} | "
             f"<strong>Tema:</strong> {html.escape(n.get('tema',''))}</p>"
-            f"<p>{SEP.join([x for x in links if x])}</p>"
+            f"<p>{links_html}</p>"
             "<hr>"
             "<p><em>Texto compilado</em> e historico virao aqui em versoes futuras.</p>"
+            f"{meta_table}"
         )
         (out / f"{slug}.html").write_text(detail_html, encoding="utf-8")
