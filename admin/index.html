@@ -18,9 +18,10 @@
   .muted{color:var(--muted)}
   code{background:#eef2ff;border-radius:6px;padding:2px 6px}
 </style>
+
 <div class="wrap">
   <h1>Admin · Banco de Normativos de Benefícios Assistenciais</h1>
-  <p class="muted">Este painel auxilia a abrir <strong>Issues</strong> com os dados do ato. O GitHub Actions converte a issue em <strong>PR</strong> com um patch JSON; ao aprovar e dar merge, o site é republicado.</p>
+  <p class="muted">Este painel abre <strong>Issues no GitHub</strong>. Os workflows transformam a issue em PR com patch JSON; ao aprovar o PR, o site é atualizado.</p>
 
   <div class="card">
     <h2>Novo ato</h2>
@@ -50,7 +51,8 @@
       <div>
         <label>Situação</label>
         <select id="situacao">
-          <option>Vigente</option><option>Revogada</option><option>Suspensa</option><option>Não vigente</option>
+          <option>Vigente</option><option>Revogada</option>
+          <option>Suspensa</option><option>Não vigente</option>
         </select>
       </div>
       <div>
@@ -84,31 +86,47 @@
     </div>
     <div class="actions">
       <a class="btn" id="btnIssue" href="#" target="_blank" rel="noreferrer">Abrir Issue “Novo ato”</a>
-      <small>Você será levado ao GitHub com o formulário para revisão/submit.</small>
+      <small>O formulário abre no <code>github.com</code>. É preciso permissão no repositório.</small>
     </div>
   </div>
 
   <div class="card">
     <h2>Editar/ajustar ato existente</h2>
-    <p>Use o formulário “Alteração/correção de ato existente”.</p>
     <div class="actions">
-      <a class="btn" href="../issues/new?template=alterar_ato.yml">Abrir Issue “Alterar ato”</a>
-      <small>Prencha o slug/identificador e os campos a alterar.</small>
+      <a class="btn" id="btnEdit" href="#" target="_blank" rel="noreferrer">Abrir Issue “Alterar ato”</a>
+      <small>Informe o <em>slug</em> ou identificação e os campos a ajustar.</small>
     </div>
   </div>
-
-  <p class="muted">Obs.: É necessário ser colaborador do repositório para criar Issues/PRs.</p>
 </div>
+
 <script>
-const repoBase = location.origin + location.pathname.replace(/\/admin\/.*$/,'/');
-const issueNew = repoBase + 'issues/new?template=novo_ato.yml';
-document.getElementById('btnIssue').addEventListener('click', (e)=>{
-  e.preventDefault();
-  // Pré-preenche apenas o título (Issue Forms não aceitam pré-preencher campos estruturados por URL)
-  const t = document.getElementById('tipo').value;
-  const n = document.getElementById('numero').value.trim();
-  const a = document.getElementById('ano').value.trim();
-  const title = encodeURIComponent(`Novo ato: ${t} ${n}/${a}`.replace(/\s+$/,''));
-  window.open(issueNew + '&title=' + title, '_blank', 'noreferrer');
-});
+(function() {
+  // Deduz owner e repo a partir da URL do Pages (ex.: albuquerquecmans.github.io/banco-normativos-ba/)
+  // Fallback para especificar manualmente se usar domínio customizado.
+  let owner = (location.hostname.endsWith('github.io') ? location.hostname.split('.')[0] : 'albuquerquecmans');
+  let repo  = (location.pathname.split('/').filter(Boolean)[0] || 'banco-normativos-ba');
+
+  const issuesBase = `https://github.com/${owner}/${repo}/issues/new`;
+
+  const novoAto = `${issuesBase}?template=novo_ato.yml`;
+  const alterarAto = `${issuesBase}?template=alterar_ato.yml`;
+
+  function buildTitle() {
+    const t = document.getElementById('tipo').value || '';
+    const n = (document.getElementById('numero').value || '').trim();
+    const a = (document.getElementById('ano').value || '').trim();
+    const tail = [n, a].filter(Boolean).join('/');
+    return encodeURIComponent(`Novo ato: ${t}${tail ? ' ' + tail : ''}`);
+  }
+
+  document.getElementById('btnIssue').addEventListener('click', (e)=>{
+    e.preventDefault();
+    window.open(novoAto + '&title=' + buildTitle(), '_blank', 'noreferrer');
+  });
+
+  document.getElementById('btnEdit').addEventListener('click', (e)=>{
+    e.preventDefault();
+    window.open(alterarAto, '_blank', 'noreferrer');
+  });
+})();
 </script>
