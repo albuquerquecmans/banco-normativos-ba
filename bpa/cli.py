@@ -1,37 +1,34 @@
-﻿import click
+﻿from __future__ import annotations
 from pathlib import Path
-from bpa.extract.spreadsheet import read_xlsx_to_json
+import click
+
+from bpa.extract.xlsx_ingest import write_norms_json
 from bpa.publish.emit_site import build_site
 
 @click.group()
 def cli():
-    """CLI do Banco de Normativos (BPA)."""
-    ...
+    """Ferramentas do Banco de Normativos (ingest / publish)."""
+    pass
 
 @cli.command()
-@click.argument("xlsx", type=click.Path(exists=True))
-@click.option("--out-json", default="data/norms.json", help="Arquivo de saida JSON com as normas")
-def ingest(xlsx, out_json):
-    click.echo(f"Ingerindo planilha: {xlsx}")
-    read_xlsx_to_json(xlsx, out_json)
-    click.echo(f"OK: {out_json}")
+@click.argument("xlsx", type=click.Path(exists=True, dir_okay=False, path_type=Path))
+@click.option("--out-json", "out_json", type=click.Path(dir_okay=False, path_type=Path), default=Path("data/norms.json"))
+def ingest(xlsx: Path, out_json: Path):
+    """Lê a PLANILHA XLSX e gera data/norms.json normalizado."""
+    click.echo(f">> Lendo: {xlsx}")
+    write_norms_json(xlsx, out_json)
+    click.echo(f">> Gravado: {out_json}")
 
 @cli.command()
-@click.option("--since", default=None, help="Controle de busca incremental")
-def monitor(since):
-    click.echo(f"(mock) Monitorando desde: {since}")
-    # TODO: implementar DOU/Planalto/LexML
+@click.option("--json", "json_path", type=click.Path(exists=True, dir_okay=False, path_type=Path), default=Path("data/norms.json"))
+@click.option("--out", "out_dir", type=click.Path(file_okay=False, path_type=Path), default=Path("_site"))
+@click.option("--sqlite", "sqlite_path", type=click.Path(dir_okay=False, path_type=Path), default=Path("_site/bpc_normativos.sqlite"))
+def publish(json_path: Path, out_dir: Path, sqlite_path: Path):
+    """Gera o site estático em OUT a partir do JSON (sqlite reservado para uso futuro)."""
+    click.echo(">> Publicando site...")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    build_site(str(json_path), str(out_dir))
+    click.echo(f">> Arquivos em: {out_dir}")
 
-@cli.command()
-def consolidate():
-    click.echo("(mock) Consolidando versoes (multivigente)...")
-    # TODO: provision_versions
-
-@cli.command()
-@click.option("--out", default="_site", help="Diretorio de saida do site")
-@click.option("--sqlite", default=None, help="Caminho do SQLite (opcional)")
-def publish(out, sqlite):
-    Path(out).mkdir(parents=True, exist_ok=True)
-    click.echo(f"Publicando site em: {out}")
-    build_site("data/norms.json", out)
-    click.echo("OK: site gerado")
+if __name__ == "__main__":
+    cli()
