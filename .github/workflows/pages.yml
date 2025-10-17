@@ -2,17 +2,16 @@
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write        # <— precisa ser write para commitar de volta
   pages: write
   id-token: write
 
 concurrency:
-  group: pages
+  group: "pages"
   cancel-in-progress: true
 
 jobs:
@@ -20,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - uses: actions/setup-python@v5
         with:
@@ -30,45 +32,61 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build site
+      - name: Build site + generate norms.json
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p _site
+          mkdir -p _site data .cache
+
+          echo ">> Conteudo da pasta data/ antes:"
+          ls -la data || true
+
           PLANILHA="data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx"
           JSON="data/norms.json"
 
           if [[ -f "$PLANILHA" ]]; then
             echo ">> Planilha encontrada. Ingerindo via CLI..."
             python -m bpa.cli ingest "$PLANILHA" --out-json "$JSON" || true
-            if [[ ! -f "$JSON" ]]; then
-              echo ">> CLI nao gerou JSON; executando fallback..."
-              python scripts/ci_fallback_ingest.py
-            fi
           else
-            echo ">> Planilha NAO encontrada."
+            echo ">> Planilha NAO encontrada em $PLANILHA"
           fi
 
-          if [[ -f "$JSON" ]]; then
-            echo ">> Preview do JSON:"
-            python -c "import json; d=json.load(open('$JSON',encoding='utf-8')); print('registros=',len(d)); print('primeiros=', [ (r.get('identificacao') or r.get('slug') or '')[:80] for r in d[:5] ])"
-            echo ">> Publicando (CLI + force build_site)..."
-            python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite || true
-            python -c "from bpa.publish.emit_site import build_site; build_site('data/norms.json','_site')"
-          else
-            echo ">> JSON NAO encontrado. Publicando placeholder..."
-            echo "<!doctype html><meta charset='utf-8'><title>banco-normativos-ba</title><h1>Banco de Normativos de Beneficios Assistenciais</h1><p>Nao foi possivel gerar <code>data/norms.json</code>. Verifique os nomes de colunas da planilha.</p>" > _site/index.html
+          # fallback SEMPRE roda para garantir o arquivo
+          if [[ ! -f "$JSON" ]]; then
+            echo ">> Gerando via fallback..."
+            python scripts/ci_fallback_ingest.py || true
           fi
 
-          echo ">> Conteudo de _site:"
-          ls -la _site || true
-
-          if [[ ! -f "_site/index.html" ]]; then
-            echo ">> Nenhum index.html encontrado; criando fallback."
-            echo "<!doctype html><meta charset='utf-8'><title>banco-normativos-ba</title><h1>Site gerado</h1><p>Sem index; verifique o passo publish/ingest.</p>" > _site/index.html
+          # ultimo recurso: garante um JSON válido (evita quebrar o deploy)
+          if [[ ! -f "$JSON" ]]; then
+            echo "[]">"$JSON"
+            echo ">> ATENCAO: norms.json vazio criado (nenhum dado ingerido)."
           fi
 
+          echo ">> Preview do JSON:"
+          python - <<'PY'
+import json, os
+p="data/norms.json"
+print("existe?", os.path.exists(p))
+d=json.load(open(p,encoding="utf-8"))
+print("registros=", len(d))
+print("primeiros=", [ (r.get('identificacao') or r.get('slug') or '')[:80] for r in d[:5] ])
+PY
+
+          echo ">> Publicando..."
+          python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite || true
+          python - <<'PY'
+from bpa.publish.emit_site import build_site
+build_site('data/norms.json','_site')
+print("build_site OK")
+PY
           : > _site/.nojekyll
+
+      - name: Commit generated data back to main
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "data: atualiza norms.json (build)"
+          file_pattern: "data/norms.json .cache/*.json"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
