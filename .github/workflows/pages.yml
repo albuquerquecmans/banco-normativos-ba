@@ -75,7 +75,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "data: atualiza norms.json (build)"
-          file_pattern: "data/norms.json .cache/*.json"
+          file_pattern: "data/norms.json"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
