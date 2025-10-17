@@ -1,0 +1,4 @@
+# Quem precisa revisar mudanças sensíveis
+/data/*      @albuquerquecmans
+/bpa/*       @albuquerquecmans
+/scripts/*   @albuquerquecmans

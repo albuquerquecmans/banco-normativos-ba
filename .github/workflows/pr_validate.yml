@@ -1,0 +1,56 @@
+name: PR Validate (schema + duplicatas)
+
+on:
+  pull_request:
+    paths:
+      - "data/**"
+      - "bpa/**"
+      - "scripts/**"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Validate schema
+        run: |
+          python scripts/validate_json.py --schema data/schema.json --data data/norms.json
+
+      - name: Check duplicates (slug / tipo+numero+ano)
+        run: |
+          python - <<'PY'
+          import json,sys,collections,unicodedata,re
+          def norm(s): 
+              s=str(s or "").strip().lower()
+              s=unicodedata.normalize("NFKD",s)
+              s="".join(c for c in s if not unicodedata.combining(c))
+              return re.sub(r"\s+"," ",s)
+          d=json.load(open("data/norms.json",encoding="utf-8"))
+          errs=[]
+          seen_slug=set()
+          seen_key=set()
+          for i,n in enumerate(d,1):
+              slug=n.get("slug") or ""
+              key=(norm(n.get("tipo")), norm(n.get("numero")), norm(n.get("ano")))
+              if slug in seen_slug: errs.append(f"slug duplicado: {slug}")
+              seen_slug.add(slug)
+              if key in seen_key: errs.append(f"chave (tipo+numero+ano) duplicada: {key}")
+              seen_key.add(key)
+          if errs:
+              print("\n".join(errs))
+              sys.exit(1)
+          print("OK: sem duplicatas")
+          PY

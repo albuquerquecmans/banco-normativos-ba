@@ -6,76 +6,59 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
 concurrency:
-  group: pages
+  group: "pages"
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build site + generate norms.json
+      - name: Build site
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p _site data .cache
 
-          echo ">> Conteudo da pasta data/ antes:"
+          echo ">> Preview data/:"
           ls -la data || true
 
-          PLANILHA="data/Normativas_Beneficios_Assistenciais_CGRAN.xlsx"
-          JSON="data/norms.json"
-
-          if [[ -f "$PLANILHA" ]]; then
-            echo ">> Planilha encontrada. Ingerindo via CLI..."
-            python -m bpa.cli ingest "$PLANILHA" --out-json "$JSON" || true
-          else
-            echo ">> Planilha NAO encontrada em $PLANILHA"
+          # Se existir XLSX, ingere para norms.json
+          if ls data/*.xlsx >/dev/null 2>&1; then
+            echo ">> Encontrado XLSX. Ingerindo..."
+            # Tenta ingerir todos XLSX encontrados; o último sobrescreve norms.json
+            for X in data/*.xlsx; do
+              python -m bpa.cli ingest "$X" --out-json data/norms.json
+            done
           fi
 
-          if [[ ! -f "$JSON" ]]; then
-            echo ">> Gerando via fallback..."
-            python scripts/ci_fallback_ingest.py || true
+          # Garante que o norms.json existe (pode estar versionado)
+          if [[ ! -f data/norms.json ]]; then
+            echo "[]">data/norms.json
+            echo ">> ATENÇÃO: data/norms.json não existia; criado vazio."
           fi
 
-          if [[ ! -f "$JSON" ]]; then
-            echo "[]">"$JSON"
-            echo ">> ATENCAO: norms.json vazio criado (nenhum dado ingerido)."
-          fi
+          # Validação de schema
+          python scripts/validate_json.py --schema data/schema.json --data data/norms.json
 
-          echo ">> Preview do JSON:"
-          python -c "import json,os; p='data/norms.json'; print('existe?',os.path.exists(p)); d=json.load(open(p,encoding='utf-8')); print('registros=',len(d)); print('primeiros=',[(r.get('identificacao') or r.get('slug') or '')[:80] for r in d[:5]])"
-
-          echo ">> Publicando..."
-          python -m bpa.cli publish --out _site --sqlite _site/bpc_normativos.sqlite || true
-          python -c "from bpa.publish.emit_site import build_site; build_site('data/norms.json','_site'); print('build_site OK')"
+          echo ">> Publicando (build local do _site)..."
+          python -m bpa.cli publish --out _site
           : > _site/.nojekyll
-
-      - name: Commit generated data back to main
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "data: atualiza norms.json (build)"
-          file_pattern: "data/norms.json"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

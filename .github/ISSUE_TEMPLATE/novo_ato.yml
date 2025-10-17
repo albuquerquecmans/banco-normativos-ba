@@ -1,0 +1,127 @@
+name: Novo ato normativo
+description: Solicitar inclusão de um novo ato na base
+title: "Novo ato: <Tipo> <Número>/<Ano>"
+labels: ["novo-ato"]
+
+body:
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Tipo
+      options:
+        - Lei
+        - Medida Provisória
+        - Decreto
+        - Instrução Normativa
+        - Instrução Operacional
+        - Memorando Circular
+        - Mensagem
+        - Orientação Interna
+        - Portaria
+        - Portaria Conjunta
+        - Portaria INSS
+        - Portaria Interministerial
+        - Portaria MDS
+        - Resolução
+      multiple: false
+    validations:
+      required: true
+
+  - type: input
+    id: numero
+    attributes:
+      label: Número
+      placeholder: "ex: 123"
+    validations:
+      required: false
+
+  - type: input
+    id: ano
+    attributes:
+      label: Ano
+      placeholder: "ex: 2025"
+    validations:
+      required: false
+
+  - type: input
+    id: data
+    attributes:
+      label: Data de publicação
+      placeholder: "AAAA-MM-DD"
+    validations:
+      required: false
+
+  - type: input
+    id: origem
+    attributes:
+      label: Órgão/Origem
+    validations:
+      required: false
+
+  - type: dropdown
+    id: situacao
+    attributes:
+      label: Situação (Vigência)
+      options:
+        - Vigente
+        - Revogada
+        - Suspensa
+        - Não vigente
+      multiple: false
+    validations:
+      required: false
+
+  - type: textarea
+    id: identificacao
+    attributes:
+      label: Identificação (como publicado)
+      placeholder: "Ex.: Portaria MDS nº 123, de 5 de agosto de 2025"
+    validations:
+      required: true
+
+  - type: textarea
+    id: ementa
+    attributes:
+      label: Ementa (resumo)
+    validations:
+      required: false
+
+  - type: input
+    id: tema
+    attributes:
+      label: Tema(s)
+      placeholder: "BPC; Avaliação da deficiência"
+    validations:
+      required: false
+
+  - type: input
+    id: fonte_dou
+    attributes:
+      label: Link do DOU
+      placeholder: "https://..."
+    validations:
+      required: false
+
+  - type: input
+    id: fonte_planalto
+    attributes:
+      label: Link do Planalto (leis/decretos)
+      placeholder: "https://..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: altera
+    attributes:
+      label: Este ato ALTERA quais outros? (um por linha)
+      placeholder: "Lei nº 8.742/1993\nPortaria MDS nº 123/2024"
+    validations:
+      required: false
+
+  - type: textarea
+    id: alterado_por
+    attributes:
+      label: Este ato foi ALTERADO por quais outros? (um por linha)
+      placeholder: "Portaria Conjunta MDS/MPS nº 33/2025"
+    validations:
+      required: false

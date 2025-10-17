@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Normativos BA",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["slug", "identificacao"],
+    "properties": {
+      "slug": { "type": "string", "minLength": 1 },
+      "tipo": { "type": "string" },
+      "numero": { "type": "string" },
+      "ano": { "type": "string" },
+      "data": { "type": "string" },
+      "vigencia": { "type": "string" },
+      "identificacao": { "type": "string" },
+      "ementa": { "type": "string" },
+      "tema": { "type": "string" },
+      "origem": { "type": "string" },
+      "fonte_planalto": { "type": "string" },
+      "fonte_dou": { "type": "string" },
+      "texto_original": { "type": "string" },
+      "texto_compilado": { "type": "string" },
+      "altera": { "type": "string" },
+      "alterado_por": { "type": "string" },
+      "relacionados": { "type": "string" },
+      "raw": { "type": "object" },
+      "raw_columns": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "additionalProperties": true
+  }
+}

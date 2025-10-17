@@ -1,0 +1,37 @@
+name: Alteração/correção de ato existente
+description: Solicitar ajuste em metadados ou relações
+title: "Alterar ato: <slug ou identificação>"
+labels: ["ajuste"]
+
+body:
+  - type: input
+    id: slug
+    attributes:
+      label: Slug/Identificador do ato
+      placeholder: "ex: portaria-mds-123-2025"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: campos
+    attributes:
+      label: Campos a alterar
+      options:
+        - label: Tipo
+        - label: Número
+        - label: Ano
+        - label: Data
+        - label: Origem
+        - label: Situação (Vigência)
+        - label: Ementa
+        - label: Tema
+        - label: Links (DOU/Planalto)
+        - label: Relações (altera / alterado_por / correlatas)
+
+  - type: textarea
+    id: detalhes
+    attributes:
+      label: Detalhe as mudanças
+      description: Informe o novo valor de cada campo marcado, um por linha.
+    validations:
+      required: true
