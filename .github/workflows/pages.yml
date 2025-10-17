@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write        # <— precisa ser write para commitar de volta
+  contents: write        # precisa ser write p/ commitar norms.json
   pages: write
   id-token: write
 
@@ -51,13 +51,13 @@ jobs:
             echo ">> Planilha NAO encontrada em $PLANILHA"
           fi
 
-          # fallback SEMPRE roda para garantir o arquivo
+          # fallback garante JSON se a CLI nao gerou
           if [[ ! -f "$JSON" ]]; then
             echo ">> Gerando via fallback..."
             python scripts/ci_fallback_ingest.py || true
           fi
 
-          # ultimo recurso: garante um JSON válido (evita quebrar o deploy)
+          # ultimo recurso: JSON vazio válido p/ nao quebrar deploy
           if [[ ! -f "$JSON" ]]; then
             echo "[]">"$JSON"
             echo ">> ATENCAO: norms.json vazio criado (nenhum dado ingerido)."

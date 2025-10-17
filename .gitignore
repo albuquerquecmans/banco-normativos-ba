@@ -4,6 +4,10 @@ __pycache__/
 _site/
 *.sqlite
 .DS_Store
-# permita os JSON dentro de data/
+
+# permitir json dentro de data/
 !data/
 !data/*.json
+
+# ignorar arquivos temporários do Excel (como ~$Normativas_...)
+~$*
