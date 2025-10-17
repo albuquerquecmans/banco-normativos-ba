@@ -25,7 +25,6 @@ TIPOS_FIXOS = [
 
 
 def _a(href: str | None, label: str) -> str:
-    """Âncora segura."""
     if not href:
         return ""
     return f'<a href="{html.escape(href)}" target="_blank" rel="noreferrer">{html.escape(label)}</a>'
@@ -36,7 +35,6 @@ def _is_url(v: str | None) -> bool:
 
 
 def _safe_slug(s: str | None, fallback: str = "norma") -> str:
-    """Slug seguro para nome de arquivo (sem / ou caracteres problemáticos)."""
     s = (s or "").lower()
     s = re.sub(r"[^a-z0-9\-]+", "-", s)
     s = s.replace("/", "-").replace("\\", "-").replace(".", "-")
@@ -79,7 +77,7 @@ def build_site(norms_json: str, out_dir: str) -> None:
     if p.exists():
         norms = json.loads(p.read_text(encoding="utf-8"))
 
-    # índice auxiliar para criar links entre atos correlatos por slug/identificação
+    # índice para relacionar por slug/identificação
     slug_by_key: dict[str, str] = {}
     for n in norms:
         s = _safe_slug(n.get("slug") or n.get("identificacao") or "")
@@ -90,9 +88,7 @@ def build_site(norms_json: str, out_dir: str) -> None:
         if ident:
             slug_by_key[ident] = s
 
-    # =========================
-    # INDEX (página principal)
-    # =========================
+    # ===== INDEX =====
     data_js = json.dumps(norms, ensure_ascii=False)
     tipos_check = "".join(
         "<label class='chip'><input type='checkbox' name='tipo' value='" + html.escape(t) + "'> " + html.escape(t) + "</label>"
@@ -113,7 +109,7 @@ def build_site(norms_json: str, out_dir: str) -> None:
         "<div class='col-6'><label>Argumento (identificação/ementa)</label><input id='f-arg' type='text' placeholder='palavra-chave'></div>"
         "<div class='col-4'><label>Temas</label><input id='f-tema' type='text' placeholder='ex: BPC'></div>"
         "<div class='col-4'><label>Origem</label><select id='f-origem'><option value=''>—</option></select></div>"
-        "<div class='col-4'><label>Situação</label><select id='f-situacao'><option value=''>—</option><option value='Vigente'>Vigente</option><option value='Não vigente'>Não vigente</option></select></div>"
+        "<div class='col-4'><label>Situação</label><select id='f-situacao'><option value=''>—</option></select></div>"
         "<div class='col-12' style='text-align:right'><button id='btn-buscar' class='btn'>Pesquisar</button></div>"
         "</div>"
         "<table>"
@@ -123,72 +119,119 @@ def build_site(norms_json: str, out_dir: str) -> None:
         "</div>"
         "<script>"
         f"const DATA = {data_js};"
+        # utilitários / normalização
         "function val(x){return (x??'').toString().trim();}"
+        "function norm(s){return (s??'').toString().normalize('NFKD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().trim();}"
         "function slug(s){return (s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9\\- ]/g,'').replace(/[\\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');}"
         "function pickRaw(n,keys){ if(!n||!n.raw) return ''; for(const k of keys){ if(n.raw[k]!=null && String(n.raw[k]).trim()!=='') return String(n.raw[k]).trim(); } return ''; }"
 
-        # helpers robustos que caem para raw/identificação
-        "function getIdent(n){return val(n.identificacao) || pickRaw(n,['IDENTIFICAÇÃO','Identificação','Identificacao','identificação']);}"
-        "function inferTipoFromIdent(id){const s=id.toLowerCase(); const map=["
+        # helpers robustos: extraem de canônico -> raw -> identificacao
+        "function getIdent(n){return val(n.identificacao) || pickRaw(n,['IDENTIFICAÇÃO','Identificação','Identificacao','identificação','Ident.']);}"
+
+        "function inferTipoFromIdent(id){const s=norm(id); const map=["
         "['portaria interministerial','Portaria Interministerial'],['portaria conjunta','Portaria Conjunta'],['portaria inss','Portaria INSS'],['portaria mds','Portaria MDS'],"
-        "['instrução normativa','Instrução Normativa'],['instrução operacional','Instrução Operacional'],['memorando circular','Memorando Circular'],['orientação interna','Orientação Interna'],"
-        "['medida provisória','Medida Provisória'],['resolução','Resolução'],['decreto','Decreto'],['lei','Lei'],['portaria','Portaria']];"
+        "['instrucao normativa','Instrução Normativa'],['instrucao operacional','Instrução Operacional'],['memorando circular','Memorando Circular'],['orientacao interna','Orientação Interna'],"
+        "['medida provisoria','Medida Provisória'],['resolucao','Resolução'],['decreto','Decreto'],['lei','Lei'],['portaria','Portaria']];"
         "for(const [k,v] of map){ if(s.includes(k)) return v; } return '';}"
         "function getTipo(n){ return val(n.tipo) || pickRaw(n,['TIPO','Tipo','tipo']) || inferTipoFromIdent(getIdent(n)); }"
 
         "function inferNumeroFromIdent(id){const m = id.match(/n[ºo]\\s*([0-9\\.\\-\\/]+)/i) || id.match(/\\b(\\d{1,6}[\\./]\\d{4})\\b/); return m ? m[1] : '';}"
-        "function getNumero(n){ return val(n.numero) || pickRaw(n,['NÚMERO','NUMERO','Número','Numero','numero']) || inferNumeroFromIdent(getIdent(n)); }"
+        "function getNumero(n){ return val(n.numero) || pickRaw(n,['NÚMERO','NUMERO','Número','Numero','numero','Nº','No']) || inferNumeroFromIdent(getIdent(n)); }"
+
         "function getAno(n){ return val(n.ano) || pickRaw(n,['ANO','Ano','ano']) || ((getNumero(n).match(/(\\d{4})$/)||[])[1]||''); }"
-        "function getTema(n){ return val(n.tema) || pickRaw(n,['TEMA','Tema','tema']); }"
-        "function getOrigem(n){ return val(n.origem) || pickRaw(n,['Origem','Órgão','ORIGEM','Orgão','Órgão/Unidade']); }"
-        "function getData(n){ return val(n.data) || pickRaw(n,['DATA','Data','data']); }"
+
+        "function getTema(n){ return val(n.tema) || pickRaw(n,['TEMA','Tema','tema','Assunto','Assuntos']); }"
+
+        "function getOrigem(n){ return val(n.origem) || pickRaw(n,['Origem','Órgão','ORIGEM','Orgão','Órgão/Unidade','Órgão emissor','Orgão emissor']); }"
+
+        "function getData(n){"
+        "  return val(n.data) || pickRaw(n,["
+        "    'DATA','Data','data','DATA DE PUBLICAÇÃO','Data de Publicação','DATA DA PUBLICAÇÃO','Publicação','DATA (DOU)','Data DOU','Data publicação'"
+        "  ]);"
+        "}"
+
+        "function getEmenta(n){ return val(n.ementa) || pickRaw(n,['EMENTA','Ementa','Ementa resumida','Ementa (resumo)','Resumo']); }"
+
+        "function mapVigencia(v){"
+        "  const s=norm(v);"
+        "  if(!s) return '';"
+        "  if(s.includes('vigente')||s==='v') return 'Vigente';"
+        "  if(s.includes('revog')||s==='r') return 'Revogada';"
+        "  if(s.includes('suspens')) return 'Suspensa';"
+        "  if(s.includes('nao vigente')||s.includes('não vigente')) return 'Não vigente';"
+        "  return v;"
+        "}"
+        "function getVigencia(n){ return mapVigencia(val(n.vigencia) || pickRaw(n,['VIGÊNCIA','Vigência','SITUAÇÃO','Situação','STATUS','Status'])); }"
 
         "function unique(xs){return Array.from(new Set(xs.filter(Boolean)));}"
-        "function fillOrigem(){const opts = unique(DATA.map(getOrigem)).sort(); const sel = document.getElementById('f-origem'); opts.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o||'—';sel.appendChild(op);});}"
 
-        "function render(rows){const tb=document.getElementById('grid'); tb.innerHTML=''; if(rows.length===0){tb.innerHTML='<tr><td colspan=6 class=\"muted\">Nenhum resultado.</td></tr>';return;} rows.forEach(n=>{"
-        "const id=getIdent(n) || (getTipo(n)+' '+(getNumero(n)||'')+'/'+(getAno(n)||'')); const s = slug(n.slug || id); const ementa = val(n.ementa) || pickRaw(n,['EMENTA','Ementa']);"
-        "const numeroTxt = getNumero(n) || id;"
-        "const linha = '<tr>' +"
-        "'<td>'+ (getTipo(n)||'') +'</td>' +"
-        "'<td><a href=\"'+ s +'.html\">'+ numeroTxt +'</a></td>' +"
-        "'<td>'+ (getData(n)||'') +'</td>' +"
-        "'<td>'+ (getOrigem(n)||'') +'</td>' +"
-        "'<td>'+ (val(n.vigencia)||'') +'</td>' +"
-        "'<td>'+ (ementa||'') +'</td>' +"
-        "'</tr>';"
-        "tb.insertAdjacentHTML('beforeend', linha);});}"
+        "function fillOrigem(){"
+        "  const opts = unique(DATA.map(getOrigem)).sort();"
+        "  const sel = document.getElementById('f-origem');"
+        "  opts.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o||'—';sel.appendChild(op);});"
+        "}"
+
+        "function fillSituacao(){"
+        "  const opts = unique(DATA.map(getVigencia)).sort();"
+        "  const sel = document.getElementById('f-situacao');"
+        "  sel.innerHTML = '<option value=\"\">—</option>';"
+        "  opts.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;sel.appendChild(op);});"
+        "}"
+
+        "function render(rows){"
+        "  const tb=document.getElementById('grid'); tb.innerHTML='';"
+        "  if(rows.length===0){tb.innerHTML='<tr><td colspan=6 class=\"muted\">Nenhum resultado.</td></tr>';return;}"
+        "  rows.forEach(n=>{"
+        "    const id = getIdent(n) || (getTipo(n)+' '+(getNumero(n)||'')+'/'+(getAno(n)||''));"
+        "    const s = slug(n.slug || id);"
+        "    const ementa = getEmenta(n);"
+        "    const numeroTxt = getNumero(n) || id;"
+        "    const linha = '<tr>' +"
+        "      '<td>'+ (getTipo(n)||'') +'</td>' +"
+        "      '<td><a href=\"'+ s +'.html\">'+ numeroTxt +'</a></td>' +"
+        "      '<td>'+ (getData(n)||'') +'</td>' +"
+        "      '<td>'+ (getOrigem(n)||'') +'</td>' +"
+        "      '<td>'+ (getVigencia(n)||'') +'</td>' +"
+        "      '<td>'+ (ementa||'') +'</td>' +"
+        "    '</tr>';"
+        "    tb.insertAdjacentHTML('beforeend', linha);"
+        "  });"
+        "}"
 
         "function doSearch(){"
-        "const tipos=Array.from(document.querySelectorAll('input[name=tipo]:checked')).map(i=>i.value.toLowerCase());"
-        "const num=document.getElementById('f-numero').value.trim().toLowerCase();"
-        "const ano=document.getElementById('f-ano').value.trim();"
-        "const arg=document.getElementById('f-arg').value.trim().toLowerCase();"
-        "const tema=document.getElementById('f-tema').value.trim().toLowerCase();"
-        "const origem=document.getElementById('f-origem').value.trim().toLowerCase();"
-        "const sit=document.getElementById('f-situacao').value.trim().toLowerCase();"
-        "const out = DATA.filter(n=>{"
-        "const t=(getTipo(n)||'').toLowerCase();"
-        "const okTipo=(tipos.length===0)||tipos.includes(t);"
-        "const okNum=!num || (getNumero(n).toLowerCase().includes(num));"
-        "const okAno=!ano || (getAno(n)===ano);"
-        "const pack=(getIdent(n)+' '+(val(n.ementa)||'')).toLowerCase();"
-        "const okArg=!arg || pack.includes(arg);"
-        "const okTema=!tema || getTema(n).toLowerCase().includes(tema);"
-        "const okOrigem=!origem || getOrigem(n).toLowerCase()===origem;"
-        "const okSit=!sit || (val(n.vigencia).toLowerCase()===sit);"
-        "return okTipo && okNum && okAno && okArg && okTema && okOrigem && okSit;});"
-        "render(out);}"
-        "fillOrigem(); document.getElementById('btn-buscar').addEventListener('click', doSearch); render(DATA);"
+        "  const tipos = Array.from(document.querySelectorAll('input[name=tipo]:checked')).map(i=>norm(i.value));"
+        "  const num = norm(document.getElementById('f-numero').value);"
+        "  const ano = document.getElementById('f-ano').value.trim();"
+        "  const arg = norm(document.getElementById('f-arg').value);"
+        "  const tema = norm(document.getElementById('f-tema').value);"
+        "  const origem = norm(document.getElementById('f-origem').value);"
+        "  const sit = norm(document.getElementById('f-situacao').value);"
+        "  const out = DATA.filter(n=>{"
+        "    const t = norm(getTipo(n));"
+        "    const okTipo = (tipos.length===0) || tipos.includes(t);"
+        "    const okNum = !num || norm(getNumero(n)).includes(num);"
+        "    const okAno = !ano || (getAno(n)===ano);"
+        "    const pack = norm(getIdent(n)+' '+getEmenta(n));"
+        "    const okArg = !arg || pack.includes(arg);"
+        "    const okTema = !tema || norm(getTema(n)).includes(tema);"
+        "    const okOrigem = !origem || norm(getOrigem(n))===origem;"
+        "    const okSit = !sit || norm(getVigencia(n))===sit;"
+        "    return okTipo && okNum && okAno && okArg && okTema && okOrigem && okSit;"
+        "  });"
+        "  render(out);"
+        "}"
+
+        "fillOrigem();"
+        "fillSituacao();"
+        "document.getElementById('btn-buscar').addEventListener('click', doSearch);"
+        "render(DATA);"
         "</script>"
     )
 
     (out / "index.html").write_text(index_html, encoding="utf-8")
     (out / ".nojekyll").write_text("", encoding="utf-8")
 
-    # =========================
-    # DETALHE (páginas por ato)
-    # =========================
+    # ===== DETALHE =====
     def links_oficiais(n: dict) -> str:
         links: list[str] = []
         if (n.get("tipo") or "").lower() in {"lei", "decreto"} and n.get("fonte_planalto"):
@@ -229,7 +272,7 @@ def build_site(norms_json: str, out_dir: str) -> None:
         alterado_por = _resolve_list(n.get("alterado_por") or n.get("alterado_por_ids"))
         correlatas = _resolve_list(n.get("relacionados") or n.get("legislacao_correlata"))
 
-        # tabela de metadados da planilha (raw)
+        # metadados (raw)
         meta_rows: list[str] = []
         raw = n.get("raw") or {}
         raw_cols = n.get("raw_columns") or list(raw.keys())
