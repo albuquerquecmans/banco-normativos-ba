@@ -38,6 +38,7 @@ jobs:
           echo ">> Preview data/:"
           ls -la data || true
 
+          # Se existir XLSX, ingere para norms.json (último arquivo sobrescreve)
           if ls data/*.xlsx >/dev/null 2>&1; then
             echo ">> Encontrado XLSX. Ingerindo..."
             for X in data/*.xlsx; do
@@ -45,17 +46,32 @@ jobs:
             done
           fi
 
+          # Garante que o norms.json existe (pode estar versionado)
           if [[ ! -f data/norms.json ]]; then
             echo "[]">data/norms.json
             echo ">> ATENÇÃO: data/norms.json não existia; criado vazio."
           fi
 
+          # Mescla patches vindos de Issues → PR (se houver)
           python scripts/merge_patches.py || true
+
+          # Validação de schema (instala jsonschema se faltar)
           python scripts/validate_json.py --schema data/schema.json --data data/norms.json
 
           echo ">> Publicando (build local do _site)..."
           python -m bpa.cli publish --out _site
           : > _site/.nojekyll
+
+      - name: Include admin static (if present)
+        shell: bash
+        run: |
+          if [ -d "admin" ]; then
+            mkdir -p _site/admin
+            cp -R admin/* _site/admin/
+            echo ">> Copiado admin/ para _site/admin/"
+          else
+            echo ">> admin/ não existe no repositório; nada a copiar."
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
